@@ -1,0 +1,2165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoBot 智能体 · 团队协作聊天室</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+<script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; background: #eef1f6; }
+
+/* ================= 登录页 ================= */
+.login-wrap {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #4b7bec 0%, #6c5ce7 100%);
+}
+.login-card {
+  width: 400px; background: #fff; border-radius: 16px; padding: 40px 36px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.18);
+}
+.login-logo { text-align: center; margin-bottom: 8px; font-size: 44px; }
+.login-title { text-align: center; font-size: 22px; font-weight: 700; color: #2d3436; margin-bottom: 4px; }
+.login-sub { text-align: center; font-size: 13px; color: #999; margin-bottom: 28px; }
+.login-tip { font-size: 12px; color: #b2bec3; text-align: center; margin-top: 14px; }
+
+/* ================= 主界面 ================= */
+.app { height: 100vh; display: flex; flex-direction: column; }
+.topbar {
+  height: 56px; background: #fff; border-bottom: 1px solid #e4e9f0;
+  display: flex; align-items: center; padding: 0 20px; gap: 14px; flex-shrink: 0;
+}
+.topbar .brand { font-size: 17px; font-weight: 700; color: #2d3436; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.topbar .spacer { flex: 1; }
+.main { flex: 1; display: flex; overflow: hidden; }
+.side {
+  width: 220px; background: #fff; border-right: 1px solid #e4e9f0;
+  padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; overflow-y: auto;
+}
+/* 成员栏标题：图标 + 计数胶囊 */
+.side .member-title {
+  font-size: 13px; font-weight: 700; color: #2d3436;
+  padding: 2px 10px 10px; display: flex; align-items: center; gap: 6px;
+}
+.side .member-title .cnt {
+  font-size: 11px; font-weight: 600; color: #8a94a6; background: #f0f3f8;
+  border-radius: 10px; padding: 1px 8px;
+}
+/* 成员搜索框 */
+.member-search { margin: 0 6px 6px; }
+.member-search input {
+  width: 100%; box-sizing: border-box; border: 1px solid #e8ecf3; border-radius: 8px;
+  padding: 6px 10px; font-size: 12px; color: #444; outline: none; background: #f7f9fc;
+  transition: border-color .15s, background .15s;
+}
+.member-search input:focus { border-color: #4b7bec; background: #fff; }
+/* 分组小标题（负责人 / 成员） */
+.side .group-label {
+  font-size: 11px; color: #a4b0be; padding: 8px 10px 4px; font-weight: 600; letter-spacing: 2px;
+}
+.side .member {
+  display: flex; align-items: center; gap: 9px; padding: 5px 10px;
+  border-radius: 10px; font-size: 14px; color: #3a4356; transition: background .15s;
+}
+.side .member:hover { background: #f2f6fd; }
+/* 首字头像：按用户名哈希取渐变配色 */
+.avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  color: #fff; font-size: 13px; font-weight: 700; text-transform: uppercase;
+  display: flex; align-items: center; justify-content: center;
+  text-shadow: 0 1px 2px rgba(0,0,0,.18); user-select: none;
+}
+.m-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 「我」标记 */
+.me-tag {
+  font-size: 10px; color: #4b7bec; background: #eef4ff; border-radius: 4px;
+  padding: 1px 5px; margin-left: 2px; flex-shrink: 0; font-weight: 600;
+}
+.content { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 14px; gap: 12px; }
+
+/* 消息流 */
+.chat-panel { flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 12px; overflow: hidden; }
+.msg-list { flex: 1; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.msg-row { display: flex; gap: 10px; }
+.msg-row.self { flex-direction: row-reverse; }
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; color: #fff; font-weight: 600;
+}
+.avatar.bot { background: linear-gradient(135deg, #4b7bec, #6c5ce7); font-size: 20px; }
+.avatar.user { background: #00b894; }
+.msg-body { max-width: 62%; }
+.msg-name { font-size: 12px; color: #999; margin-bottom: 4px; }
+.msg-row.self .msg-name { text-align: right; }
+.bubble {
+  padding: 10px 14px; border-radius: 10px; font-size: 14px; line-height: 1.65;
+  background: #f1f3f8; color: #2d3436; white-space: pre-wrap; word-break: break-word;
+}
+.msg-row.self .bubble { background: #4b7bec; color: #fff; }
+.msg-row.bot .bubble { background: #f3f0ff; border: 1px solid #e0daff; color: #444; }
+.input-bar { border-top: 1px solid #eef1f6; padding: 12px 16px; display: flex; gap: 10px; }
+
+/* 任务看板 */
+.board-panel { flex: 1; background: #fff; border-radius: 12px; overflow-y: auto; padding: 16px 20px; }
+.pending-banner {
+  background: #fff8e6; border: 1px solid #ffe58f; border-radius: 10px;
+  padding: 10px 16px; margin-bottom: 14px; display: flex; align-items: center; gap: 12px; font-size: 14px;
+}
+.task-card {
+  border: 1px solid #e8ecf3; border-radius: 10px; padding: 12px 16px;
+  margin-bottom: 10px; display: flex; align-items: center; gap: 14px; font-size: 14px;
+}
+.task-id { color: #b2bec3; font-size: 12px; width: 34px; flex-shrink: 0; }
+.task-owner { background: #eef3ff; color: #4b7bec; border-radius: 6px; padding: 2px 8px; font-size: 12px; flex-shrink: 0; }
+.task-content { flex: 1; color: #2d3436; }
+.task-deadline { color: #888; font-size: 12px; flex-shrink: 0; }
+.tag-high { color: #e74c3c; font-size: 12px; flex-shrink: 0; }
+.tag-normal { color: #999; font-size: 12px; flex-shrink: 0; }
+.empty-board { text-align: center; color: #b2bec3; padding: 60px 0; font-size: 14px; }
+/* 看板统计条 */
+.board-stats { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.stat-chip {
+  font-size: 13px; color: #555; background: #f4f6fa; border-radius: 8px; padding: 6px 14px;
+}
+.stat-chip b { font-size: 15px; margin-left: 2px; }
+.stat-doing b { color: #4b7bec; }
+.stat-done b { color: #00b894; }
+.stat-overdue b { color: #e74c3c; }
+.task-overdue {
+  background: #fdeaea; color: #e74c3c; border-radius: 6px; padding: 2px 8px; font-size: 12px; flex-shrink: 0;
+}
+.stat-wait b { color: #e6a23c; }
+/* 待审批任务卡片高亮 */
+.task-card-wait { background: #fffdf5; border-color: #ffe58f; border-left: 3px solid #e6a23c; }
+/* 成员角色徽章：金色渐变，突出负责人身份 */
+.role-badge {
+  background: linear-gradient(135deg, #ffb75e, #ed8f03); color: #fff; border-radius: 10px;
+  padding: 1px 8px; font-size: 10px; margin-left: 2px; flex-shrink: 0; font-weight: 600;
+  box-shadow: 0 1px 3px rgba(237, 143, 3, .28); white-space: nowrap;
+}
+/* 成员操作按钮：悬停行时才浮现，减少视觉噪音 */
+.member-op {
+  color: #b2bec3; cursor: pointer; padding: 2px 7px; font-weight: 700; border-radius: 6px;
+  opacity: 0; transition: opacity .15s, color .15s, background .15s; flex-shrink: 0;
+}
+.side .member:hover .member-op { opacity: 1; }
+.member-op:hover { color: #4b7bec; background: #e8f0fe; }
+/* 搜索无结果提示 */
+.empty-member-tip { font-size: 12px; color: #b2bec3; text-align: center; padding: 24px 0; }
+
+/* ================= AI 工作台 ================= */
+.ai-panel { flex: 1; background: #fff; border-radius: 12px; overflow-y: auto; padding: 16px 20px; }
+.ai-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+.ai-card {
+  border: 1px solid #e8ecf3; border-radius: 12px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px; background: #fbfcfe;
+}
+.ai-card-title { font-size: 15px; font-weight: 700; color: #2d3436; display: flex; align-items: center; gap: 8px; }
+.ai-card-desc { font-size: 12px; color: #8a94a6; line-height: 1.6; flex: 1; }
+.ai-card-row { display: flex; gap: 8px; align-items: center; }
+.ai-card-label { font-size: 12px; color: #8a94a6; flex-shrink: 0; }
+.ai-result { border: 1px solid #e8ecf3; border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
+.ai-result-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.ai-result-title { font-size: 15px; font-weight: 700; color: #2b4ca0; }
+.ai-report {
+  background: #f7f9fd; border: 1px solid #e5ecf9; border-radius: 10px; padding: 14px 16px;
+  font-size: 13px; line-height: 1.85; color: #2d3436; white-space: pre-wrap;
+  word-break: break-word; max-height: 400px; overflow-y: auto;
+}
+.ai-goal { font-size: 13px; color: #2d3436; margin-bottom: 14px; }
+.ai-stage { border-left: 3px solid #4b7bec; padding: 2px 0 2px 12px; margin-bottom: 16px; }
+.ai-stage-title { font-size: 14px; font-weight: 700; color: #2b4ca0; margin-bottom: 4px; }
+.ai-stage-period { color: #98a2b3; font-weight: 400; font-size: 12px; margin-left: 8px; }
+.ai-stage-goal { font-size: 12px; color: #8a94a6; margin-bottom: 8px; }
+.ai-task { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 6px 0; border-bottom: 1px dashed #eef1f6; }
+.ai-task:last-child { border-bottom: none; }
+.ai-task-no { color: #c3cad8; font-size: 12px; width: 22px; flex-shrink: 0; }
+.ai-task-content { flex: 1; color: #2d3436; }
+.ai-task-owner { background: #eef3ff; color: #4b7bec; border-radius: 6px; padding: 1px 8px; font-size: 12px; flex-shrink: 0; }
+.ai-task-deadline { color: #98a2b3; font-size: 12px; flex-shrink: 0; }
+.ai-slide { display: flex; gap: 12px; font-size: 13px; padding: 8px 0; border-bottom: 1px dashed #eef1f6; }
+.ai-slide:last-child { border-bottom: none; }
+.ai-slide-no { width: 52px; flex-shrink: 0; color: #4b7bec; font-weight: 700; font-size: 12px; line-height: 1.5; }
+.ai-slide-body { flex: 1; }
+.ai-slide-title { font-weight: 600; color: #2d3436; margin-bottom: 3px; }
+.ai-slide-bullet { color: #6b7688; font-size: 12px; line-height: 1.75; }
+.ai-history-item { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 7px 0; border-bottom: 1px dashed #eef1f6; }
+.ai-history-item:last-child { border-bottom: none; }
+.ai-history-time { color: #b2bec3; font-size: 12px; }
+.ai-empty { text-align: center; color: #b2bec3; padding: 40px 0; font-size: 14px; }
+/* 配色主题选择器：小圆点 + 名称，选中的高亮描边 */
+.theme-pick {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #5a6675;
+  border: 1px solid #e6ebf2; border-radius: 13px; padding: 3px 9px; cursor: pointer;
+  background: #fff; transition: border-color .15s, background .15s, color .15s;
+}
+.theme-pick:hover { border-color: #c7d4e8; }
+.theme-pick.active { border-color: #4b7bec; background: #f2f7ff; color: #2b4ca0; font-weight: 600; }
+.theme-dot {
+  width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex-shrink: 0;
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,.06) inset;
+}
+/* 历史回看：Markdown 详情弹窗（宽一点 + 可滚动 + 保留换行） */
+.ai-detail-box { width: 680px !important; max-width: 90vw; }
+.ai-detail-box .el-message-box__message { max-height: 55vh; overflow-y: auto; white-space: pre-wrap; font-size: 13px; line-height: 1.85; }
+
+/* ============ 消息增强：附件 / 撤回 / @提及 / 未读 ============ */
+.msg-row { position: relative; }
+.msg-actions {
+  position: absolute; right: 8px; top: 2px; opacity: 0; transition: opacity .15s;
+  background: #fff; border: 1px solid #e4e9f0; border-radius: 8px; padding: 2px 8px;
+  display: flex; gap: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.07); z-index: 2;
+}
+.msg-row:hover .msg-actions { opacity: 1; }
+.msg-action { font-size: 12px; color: #8a94a6; cursor: pointer; }
+.msg-action:hover { color: #e74c3c; }
+.bubble.mention-me { background: #fff7e8; border: 1px solid #f6c46b; }
+.bubble.revoked { background: #f4f6fa; color: #a4adbd; font-style: italic; }
+.mention-tag {
+  display: inline-block; background: #4b7bec; color: #fff; border-radius: 10px;
+  padding: 0 6px; font-size: 12px; margin-right: 4px;
+}
+.bubble-image { max-width: 260px; max-height: 200px; border-radius: 8px; display: block; cursor: pointer; }
+.file-card {
+  display: flex; align-items: center; gap: 8px; background: #f7f9fc; border: 1px solid #e4e9f0;
+  border-radius: 8px; padding: 8px 10px; text-decoration: none; color: #2d3436; min-width: 180px;
+}
+.file-card:hover { border-color: #4b7bec; background: #f2f7ff; }
+.file-icon { font-size: 20px; }
+.file-meta { display: flex; flex-direction: column; line-height: 1.4; }
+.file-name { font-size: 13px; word-break: break-all; }
+.file-size { font-size: 11px; color: #8a94a6; }
+.attach-btn { font-size: 20px; cursor: pointer; color: #8a94a6; padding: 0 6px; line-height: 1; user-select: none; }
+.attach-btn:hover { color: #4b7bec; }
+.unread-bar {
+  background: #eef4ff; border: 1px solid #cfe0ff; color: #2b4ca0; border-radius: 8px;
+  padding: 6px 10px; font-size: 12px; display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.team-unread { background: #ff4d4f; color: #fff; border-radius: 9px; padding: 0 5px; font-size: 11px; margin-left: 6px; }
+
+/* ============ 看板增强：筛选 / 图表 / 分页 ============ */
+.board-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+.chart-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.chart-card { flex: 1 1 320px; background: #fff; border: 1px solid #e4e9f0; border-radius: 12px; padding: 12px 14px; }
+.chart-title { font-size: 13px; font-weight: 700; color: #2d3436; margin-bottom: 10px; }
+.bar-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 6px; color: #57606f; }
+.bar-name { width: 66px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { flex: 1; height: 12px; background: #f1f4f9; border-radius: 6px; overflow: hidden; }
+/* bar-fill 用 <i> 标签，行内元素不认 height，必须转块级，否则条形图填充不显示 */
+.bar-fill { display: block; height: 100%; border-radius: 6px; transition: width .3s; }
+.bar-val { width: 52px; text-align: right; flex-shrink: 0; color: #2d3436; }
+.board-pager { display: flex; justify-content: flex-end; margin-top: 10px; }
+
+/* ============ AI 工作台：新能力卡片 ============ */
+.ai-note { font-size: 12px; color: #8a94a6; line-height: 1.6; }
+.ai-answer {
+  background: #f7f9fc; border-left: 3px solid #4b7bec; border-radius: 6px;
+  padding: 10px 12px; font-size: 13px; line-height: 1.85; color: #2d3436; white-space: pre-wrap;
+}
+.qa-chip { cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ================= 登录视图 ================= -->
+  <div class="login-wrap" v-if="!loggedIn">
+    <div class="login-card">
+      <div class="login-logo">🤖</div>
+      <div class="login-title">CoBot 智能体</div>
+      <div class="login-sub">团队协作聊天室 · 请先登录</div>
+      <el-tabs v-model="loginTab">
+        <el-tab-pane label="登录" name="login">
+          <el-form @submit.prevent="doLogin">
+            <el-form-item>
+              <el-input v-model="loginForm.account" placeholder="学号 / 工号" size="large" @keyup.enter="doLogin">
+                <template #prefix>👤</template>
+              </el-input>
+            </el-form-item>
+            <el-form-item>
+              <el-input v-model="loginForm.password" type="password" placeholder="密码" size="large" show-password @keyup.enter="doLogin">
+                <template #prefix>🔒</template>
+              </el-input>
+            </el-form-item>
+            <el-button type="primary" size="large" style="width:100%" :loading="loginLoading" @click="doLogin">登 录</el-button>
+          </el-form>
+        </el-tab-pane>
+        <el-tab-pane label="注册" name="register">
+          <el-form @submit.prevent="doRegister">
+            <el-form-item>
+              <el-input v-model="regForm.account" placeholder="学号 / 工号（登录账号，注册后不可改）" size="large">
+                <template #prefix>🆔</template>
+              </el-input>
+            </el-form-item>
+            <el-form-item>
+              <el-input v-model="regForm.nickname" placeholder="姓名 / 昵称（聊天与任务中显示，可重复）" size="large">
+                <template #prefix>👤</template>
+              </el-input>
+            </el-form-item>
+            <el-form-item>
+              <el-input v-model="regForm.password" type="password" placeholder="密码（至少 4 位）" size="large" show-password>
+                <template #prefix>🔒</template>
+              </el-input>
+            </el-form-item>
+            <el-button type="success" size="large" style="width:100%" :loading="regLoading" @click="doRegister">注 册</el-button>
+          </el-form>
+        </el-tab-pane>
+      </el-tabs>
+      <div class="login-tip">
+        登录请用「学号 / 工号」，昵称仅用于界面显示。演示账号（密码均为 123456）：<br>
+        🔑 20230001 张三 = 研发一组负责人 ｜ 🔑 20230002 李四 = 产品二组负责人<br>
+        20230003 王五 / 20230004 赵六 = 普通成员（如用 20230001 / 123456 登录，界面显示「张三」）<br>
+        新注册账号不会自动加入任何团队，需自行创建团队或凭邀请码加入
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 主应用视图（已登录且已加入团队） ================= -->
+  <div class="app" v-else-if="!needTeam">
+    <div class="topbar">
+      <div class="brand">🤖 CoBot 智能体</div>
+      <el-select v-model="currentTeamId" style="width:200px" @change="onTeamChange">
+        <el-option v-for="t in myTeams" :key="t.id" :label="t.teamName" :value="t.id">
+          <span style="float:left">{{ t.teamName }}</span>
+          <span v-if="t.pendingTaskCount > 0" class="ai-note" style="float:right;margin-left:8px;">
+            待办 {{ t.pendingTaskCount }}
+          </span>
+          <span v-if="t.unreadCount > 0" class="team-unread" style="float:right;">{{ t.unreadCount }}</span>
+        </el-option>
+      </el-select>
+      <el-tag :type="isOwner ? 'danger' : 'success'" effect="dark" size="small">
+        {{ isOwner ? '🔑 负责人' : '成员' }}
+      </el-tag>
+      <el-button size="small" @click="showInvite">🔗 邀请码</el-button>
+      <el-button size="small" type="primary" plain @click="createTeam">＋ 建团队</el-button>
+      <el-button size="small" type="success" plain @click="joinTeam">加入团队</el-button>
+      <el-button size="small" v-if="isOwner" type="warning" plain @click="teamManage">⚙ 团队管理</el-button>
+      <el-button size="small" danger plain @click="leaveTeam">退出团队</el-button>
+      <div class="spacer"></div>
+      <el-tag type="info" effect="plain">👤 {{ me.username }}</el-tag>
+      <el-button text @click="pwdDialog = true">修改密码</el-button>
+      <el-button text type="danger" @click="doLogout">退出登录</el-button>
+    </div>
+
+    <!-- 修改密码弹窗 -->
+    <el-dialog v-model="pwdDialog" title="修改密码" width="380px">
+      <el-form label-width="80px">
+        <el-form-item label="原密码">
+          <el-input v-model="pwdForm.oldPassword" type="password" show-password></el-input>
+        </el-form-item>
+        <el-form-item label="新密码">
+          <el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="至少 6 位"></el-input>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="pwdDialog = false">取消</el-button>
+        <el-button type="primary" @click="changePassword">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 任务指派弹窗（负责人专属） -->
+    <el-dialog v-model="assignDialog" title="指派任务给成员" width="380px">
+      <div style="margin-bottom:10px; color:#666; font-size:13px;">任务 #{{ assignTask && assignTask.id }} {{ assignTask && assignTask.taskContent }}</div>
+      <el-select v-model="assignOwner" placeholder="选择成员" style="width:100%">
+        <el-option v-for="m in members" :key="m.id" :label="m.username" :value="m.username"></el-option>
+      </el-select>
+      <template #footer>
+        <el-button @click="assignDialog = false">取消</el-button>
+        <el-button type="primary" @click="doAssign">确定指派</el-button>
+      </template>
+    </el-dialog>
+
+    <div class="main">
+      <!-- 左侧成员栏 -->
+      <div class="side">
+        <div class="member-title">👥 聊天室成员 <span class="cnt">{{ members.length }}</span></div>
+        <div class="member-search">
+          <input v-model="memberSearch" placeholder="🔍 搜索成员…" />
+        </div>
+        <template v-for="grp in memberGroups" :key="grp.label">
+          <div class="group-label">{{ grp.label }}</div>
+          <div class="member" v-for="m in grp.list" :key="m.id">
+            <span class="avatar" :style="avatarStyle(m.username)">{{ m.username.slice(0, 1) }}</span>
+            <span class="m-name">{{ m.username }}</span>
+            <span class="me-tag" v-if="m.id === me.userId">我</span>
+            <span class="role-badge" v-if="m.role === 'owner'">👑 负责人</span>
+            <el-dropdown v-if="isOwner && m.id !== me.userId" trigger="click" @command="cmd => memberCmd(cmd, m)">
+              <span class="member-op">⋯</span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item :command="m.role === 'owner' ? 'member' : 'owner'">
+                    {{ m.role === 'owner' ? '取消负责人' : '设为负责人' }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="remove" divided>移出团队</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </template>
+        <div class="empty-member-tip" v-if="!memberGroups.length">没有匹配的成员</div>
+      </div>
+
+      <div class="content">
+        <!-- 页签：聊天室 / 任务看板 -->
+        <el-tabs v-model="activeTab" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+          <!-- 聊天室 -->
+          <el-tab-pane label="💬 聊天室" name="chat" style="height:100%;">
+            <div class="chat-panel" style="height:100%;">
+              <div class="msg-list" ref="msgListRef">
+                <div class="unread-bar" v-if="unreadCount > 0">
+                  <span>🔔 有 <b>{{ unreadCount }}</b> 条未读消息</span>
+                  <el-button size="small" text type="primary" @click="markAllRead">标记全部已读</el-button>
+                </div>
+                <div v-for="msg in messages" :key="msg.id"
+                     class="msg-row"
+                     :class="msg.senderType === 1 ? 'bot' : (msg.senderId === me.userId ? 'self' : '')">
+                  <div class="avatar" :class="msg.senderType === 1 ? 'bot' : 'user'">
+                    {{ msg.senderType === 1 ? '🤖' : (msg.senderName || '?').charAt(0) }}
+                  </div>
+                  <div class="msg-body">
+                    <div class="msg-name">
+                      {{ msg.senderName }} · {{ fmtTime(msg.createTime) }}
+                      <span class="mention-tag" v-if="msg.mentionMe">@我</span>
+                    </div>
+                    <div class="bubble" :class="{ 'mention-me': msg.mentionMe, revoked: msg.revoked === 1 }">
+                      <!-- 已撤回 -->
+                      <template v-if="msg.revoked === 1">该消息已被撤回</template>
+                      <!-- 图片附件：带 Token 取回后以 blob 展示 -->
+                      <template v-else-if="msg.msgType === 'image'">
+                        <img v-if="msg.blobUrl" class="bubble-image" :src="msg.blobUrl" alt="图片">
+                        <span v-else style="color:#8a94a6;">图片加载中…</span>
+                      </template>
+                      <!-- 文件附件 -->
+                      <template v-else-if="msg.msgType === 'file'">
+                        <a class="file-card" href="javascript:void(0)" @click="downloadAttachment(msg)">
+                          <span class="file-icon">📄</span>
+                          <span class="file-meta">
+                            <span class="file-name">{{ msg.fileName }}</span>
+                            <span class="file-size">{{ fmtSize(msg.fileSize) }}</span>
+                          </span>
+                        </a>
+                      </template>
+                      <!-- 文本 -->
+                      <template v-else>{{ msg.msgContent }}</template>
+                    </div>
+                  </div>
+                  <div class="msg-actions">
+                    <span class="msg-action" v-if="canRevoke(msg)" @click="revokeMsg(msg)">撤回</span>
+                    <span class="msg-action" v-if="isOwner" @click="deleteMsg(msg)">删除</span>
+                  </div>
+                </div>
+              </div>
+              <div class="input-bar">
+                <span class="attach-btn" title="发送图片 / 文件" @click="pickFile">📎</span>
+                <input ref="fileInputRef" type="file" style="display:none" @change="onFilePicked">
+                <el-input v-model="inputText" placeholder="输入消息；@成员 可提醒对方，@CoBot 唤醒智能体，如：@CoBot 让李四周五前交周报 / 提醒我 明天9点 开会" size="large"
+                          @keyup.enter="sendMsg" :disabled="sending"></el-input>
+                <el-button type="primary" size="large" :loading="sending" @click="sendMsg">发送</el-button>
+              </div>
+            </div>
+          </el-tab-pane>
+
+          <!-- 任务看板 -->
+          <el-tab-pane label="📋 任务看板" name="board">
+            <div class="board-panel">
+              <!-- 统计卡片 -->
+              <div class="board-stats">
+                <div class="stat-chip">共 <b>{{ tasks.length }}</b> 项</div>
+                <div class="stat-chip stat-doing">进行中 <b>{{ stat.doing }}</b></div>
+                <div class="stat-chip stat-done">已完成 <b>{{ stat.done }}</b></div>
+                <div class="stat-chip stat-overdue">逾期 <b>{{ stat.overdue }}</b></div>
+                <div class="stat-chip stat-wait" v-if="stat.waiting > 0">待审批 <b>{{ stat.waiting }}</b></div>
+                <div style="flex:1"></div>
+                <el-button size="small" @click="exportTasks">⬇ 导出 Excel</el-button>
+              </div>
+
+              <!-- 工具栏：状态 / 关键字 / 负责人 / 只看我的 -->
+              <div class="board-toolbar">
+                <el-radio-group v-model="filterStatus" size="small">
+                  <el-radio-button label="">全部</el-radio-button>
+                  <el-radio-button label="待确认">待审批</el-radio-button>
+                  <el-radio-button label="进行中">进行中</el-radio-button>
+                  <el-radio-button label="已完成">已完成</el-radio-button>
+                  <el-radio-button label="归档">归档</el-radio-button>
+                </el-radio-group>
+                <el-input v-model="filterKeyword" size="small" style="width:170px" clearable
+                          placeholder="🔍 搜索任务内容"></el-input>
+                <el-select v-model="filterOwner" size="small" style="width:130px" clearable placeholder="按负责人筛选">
+                  <el-option v-for="m in members" :key="'f' + m.id" :label="m.username" :value="m.username"></el-option>
+                </el-select>
+                <el-checkbox v-model="onlyMine" size="large">只看我的任务</el-checkbox>
+                <div style="flex:1"></div>
+                <span class="ai-note">筛选后 {{ filteredTasks.length }} 条</span>
+              </div>
+
+              <!-- 可视化：任务状态分布 + 成员负荷（纯 SVG/CSS，离线可用） -->
+              <div class="chart-row" v-if="tasks.length">
+                <div class="chart-card">
+                  <div class="chart-title">📊 任务状态分布</div>
+                  <div class="bar-row" v-for="s in statusBars" :key="s.label">
+                    <span class="bar-name">{{ s.label }}</span>
+                    <span class="bar-track">
+                      <i class="bar-fill" :style="{ width: s.percent + '%', background: s.color }"></i>
+                    </span>
+                    <span class="bar-val">{{ s.value }} 条</span>
+                  </div>
+                </div>
+                <div class="chart-card">
+                  <div class="chart-title">👥 成员负荷（进行中 / 逾期）</div>
+                  <div class="bar-row" v-for="m in loadBars" :key="m.name">
+                    <span class="bar-name">{{ m.name }}</span>
+                    <span class="bar-track">
+                      <i class="bar-fill" :style="{ width: m.percent + '%', background: m.color }"></i>
+                    </span>
+                    <span class="bar-val">{{ m.doing }}/{{ m.overdue }}</span>
+                  </div>
+                  <div class="ai-note" v-if="!loadBars.length">暂无分工数据</div>
+                </div>
+              </div>
+
+              <div class="pending-banner" v-if="pendingTask">
+                <span>🔍 AI 识别到待确认任务：<b>负责人[{{ pendingTask.parseDTO.ownerName }}]</b>
+                  {{ pendingTask.parseDTO.taskContent }}
+                  （截止：{{ pendingTask.parseDTO.deadline || '未设置' }}）</span>
+                <el-button type="warning" size="small" @click="confirmTask">确认创建</el-button>
+              </div>
+              <div v-if="pagedTasks.length === 0" class="empty-board">
+                {{ onlyMine ? '你没有符合条件的名下任务' : '没有符合条件的任务，在聊天室 @CoBot 创建一个吧' }}
+              </div>
+              <div class="task-card" v-for="task in pagedTasks" :key="task.id"
+                   :class="{ 'task-card-wait': task.taskStatus === '待确认' }">
+                <span class="task-id">#{{ task.id }}</span>
+                <span class="task-owner">{{ task.ownerName }}</span>
+                <span class="task-content">{{ task.taskContent }}</span>
+                <span class="task-overdue" v-if="isOverdue(task)">已逾期</span>
+                <span :class="task.priority === '高' ? 'tag-high' : 'tag-normal'">{{ task.priority }}</span>
+                <span class="task-deadline">截止 {{ task.deadline || '未设置' }}</span>
+                <!-- 负责人：审批按钮 -->
+                <template v-if="isOwner && task.taskStatus === '待确认'">
+                  <el-button size="small" type="success" @click="approveTask(task, true)">批准</el-button>
+                  <el-button size="small" type="danger" plain @click="approveTask(task, false)">驳回</el-button>
+                </template>
+                <!-- 负责人：指派 / 删除 -->
+                <template v-if="isOwner">
+                  <el-button size="small" @click="openAssign(task)">指派</el-button>
+                  <el-button size="small" type="danger" plain @click="deleteTask(task)">删除</el-button>
+                </template>
+                <el-select :model-value="task.taskStatus" size="small" style="width:110px"
+                           :disabled="!canEditStatus(task)" @change="s => changeStatus(task, s)">
+                  <el-option label="待确认" value="待确认"></el-option>
+                  <el-option label="进行中" value="进行中"></el-option>
+                  <el-option label="已完成" value="已完成"></el-option>
+                  <el-option label="归档" value="归档"></el-option>
+                </el-select>
+              </div>
+
+              <!-- 分页 -->
+              <div class="board-pager" v-if="filteredTasks.length > pageSize">
+                <el-pagination background layout="prev, pager, next, total"
+                               :total="filteredTasks.length" :page-size="pageSize"
+                               :current-page="page" @current-change="onPageChange"></el-pagination>
+              </div>
+            </div>
+          </el-tab-pane>
+
+          <!-- AI 工作台 -->
+          <el-tab-pane label="🤖 AI 工作台" name="ai">
+            <div class="ai-panel">
+              <!-- 三个功能入口 -->
+              <div class="ai-grid">
+                <!-- 1. 团队数据洞察（负责人专属） -->
+                <div class="ai-card">
+                  <div class="ai-card-title">
+                    📊 团队数据洞察
+                    <el-tag size="small" :type="isOwner ? 'danger' : 'info'" effect="plain">
+                      {{ isOwner ? '负责人专属' : '仅负责人可用' }}
+                    </el-tag>
+                  </div>
+                  <div class="ai-card-desc">
+                    汇总团队任务数据（进度分布 / 逾期风险 / 成员负荷），由 AI 输出管理分析报告，支持导出文档。
+                  </div>
+                  <el-button type="primary" :loading="aiBusy === 'insight'" :disabled="!isOwner || !!aiBusy"
+                             @click="runInsight">生成团队洞察</el-button>
+                </div>
+
+                <!-- 2. 一键生成项目计划 -->
+                <div class="ai-card">
+                  <div class="ai-card-title">🗂 一键生成项目计划</div>
+                  <div class="ai-card-desc">
+                    输入项目主题，AI 自动拆解为「阶段 → 任务」并分配到人，可一键导入任务看板。
+                  </div>
+                  <el-input v-model="planForm.topic" size="small" maxlength="60" show-word-limit
+                            placeholder="项目主题，如：校园二手交易平台"></el-input>
+                  <div class="ai-card-row">
+                    <span class="ai-card-label">周期</span>
+                    <el-select v-model="planForm.weeks" size="small" style="width:96px">
+                      <el-option v-for="w in [2,3,4,6,8]" :key="w" :label="w + ' 周'" :value="w"></el-option>
+                    </el-select>
+                    <el-button type="primary" size="small" style="flex:1"
+                               :loading="aiBusy === 'plan'" :disabled="!!aiBusy" @click="runPlan">生成计划</el-button>
+                  </div>
+                </div>
+
+                <!-- 3. 一键生成 PPT -->
+                <div class="ai-card">
+                  <div class="ai-card-title">🎞 一键生成 PPT</div>
+                  <div class="ai-card-desc">
+                    AI 出大纲、服务端渲染成真实 .pptx 文件，下载即可用 PowerPoint / WPS 直接放映。
+                  </div>
+                  <el-input v-model="pptForm.topic" size="small" maxlength="60" show-word-limit
+                            placeholder="演示主题，如：项目中期汇报"></el-input>
+                  <!-- 配色主题：点一下切换，选中项蓝框高亮 -->
+                  <div class="ai-card-row" style="flex-wrap:wrap;gap:6px;">
+                    <span class="ai-card-label">配色</span>
+                    <span class="theme-pick" v-for="t in themes" :key="t.key"
+                          :class="{ active: pptForm.theme === t.key }"
+                          :title="t.name + '（' + t.primary + '）'"
+                          @click="pptForm.theme = t.key">
+                      <i class="theme-dot" :style="{ background: 'linear-gradient(135deg,' + t.primary + ',' + t.accent + ')' }"></i>{{ t.name }}
+                    </span>
+                  </div>
+                  <div class="ai-card-row">
+                    <el-select v-model="pptForm.scene" size="small" style="width:104px">
+                      <el-option label="项目汇报" value="report"></el-option>
+                      <el-option label="项目方案" value="plan"></el-option>
+                      <el-option label="活动策划" value="activity"></el-option>
+                      <el-option label="通用介绍" value="general"></el-option>
+                    </el-select>
+                    <el-select v-model="pptForm.slideCount" size="small" style="width:86px">
+                      <el-option v-for="n in [6,8,10,12,15]" :key="n" :label="n + ' 页'" :value="n"></el-option>
+                    </el-select>
+                    <el-button type="primary" size="small" style="flex:1"
+                               :loading="aiBusy === 'ppt'" :disabled="!!aiBusy" @click="runPpt">生成 PPT</el-button>
+                  </div>
+                </div>
+
+                <!-- 4. 会议纪要 -> 任务 -->
+                <div class="ai-card">
+                  <div class="ai-card-title">🧠 会议纪要 → 任务</div>
+                  <div class="ai-card-desc">
+                    粘贴一段会议纪要，AI 自动抽取可执行任务并匹配负责人，确认后一键导入任务看板。
+                  </div>
+                  <el-input v-model="meetingForm.notes" type="textarea" :rows="3" size="small" maxlength="6000"
+                            placeholder="例：本周完成登录接口（张三，周五前）；李四整理接口文档，下周三交"></el-input>
+                  <div class="ai-card-row">
+                    <span class="ai-note" style="flex:1">负责人导入直接生效，成员导入进待审批</span>
+                    <el-button type="primary" size="small" :loading="aiBusy === 'meeting'"
+                               :disabled="!!aiBusy" @click="runMeeting">解析纪要</el-button>
+                  </div>
+                </div>
+
+                <!-- 5. AI 周报（负责人专属） -->
+                <div class="ai-card">
+                  <div class="ai-card-title">
+                    📰 AI 团队周报
+                    <el-tag size="small" :type="isOwner ? 'danger' : 'info'" effect="plain">
+                      {{ isOwner ? '负责人专属' : '仅负责人可用' }}
+                    </el-tag>
+                  </div>
+                  <div class="ai-card-desc">
+                    汇总近 7 天任务进展、逾期风险与成员负荷，生成周报并可一键推送到团队聊天室。
+                  </div>
+                  <div class="ai-card-row">
+                    <el-button type="primary" size="small" style="flex:1"
+                               :loading="aiBusy === 'weekly'" :disabled="!isOwner || !!aiBusy"
+                               @click="runWeekly">生成本周周报</el-button>
+                  </div>
+                </div>
+
+                <!-- 6. 团队数据问答（负责人专属） -->
+                <div class="ai-card">
+                  <div class="ai-card-title">
+                    💬 团队数据问答
+                    <el-tag size="small" :type="isOwner ? 'danger' : 'info'" effect="plain">
+                      {{ isOwner ? '负责人专属' : '仅负责人可用' }}
+                    </el-tag>
+                  </div>
+                  <div class="ai-card-desc">
+                    用自然语言提问团队数据，例如"谁手上活最多"；回答严格基于数据库真实统计，不编造。
+                  </div>
+                  <el-input v-model="qaForm.question" size="small" maxlength="200" show-word-limit
+                            placeholder="问点什么，如：现在有几条逾期任务？"></el-input>
+                  <div class="ai-card-row" style="flex-wrap:wrap;gap:6px;">
+                    <span class="qa-chip ai-card-label" v-for="q in QaSamples" :key="q"
+                          @click="qaForm.question = q">{{ q }}</span>
+                  </div>
+                  <div class="ai-card-row">
+                    <el-button type="primary" size="small" style="flex:1"
+                               :loading="aiBusy === 'ask'" :disabled="!isOwner || !!aiBusy"
+                               @click="runAsk">提问</el-button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ---------- 结果区：团队洞察 ---------- -->
+              <div class="ai-result" v-if="aiResultType === 'insight' && insightData">
+                <div class="ai-result-head">
+                  <span class="ai-result-title">📊 {{ insightData.teamName }} · 团队数据洞察</span>
+                  <el-tag size="small" effect="dark"
+                          :type="insightData.riskLevel === '高' ? 'danger' : (insightData.riskLevel === '中' ? 'warning' : 'success')">
+                    风险等级 {{ insightData.riskLevel }}
+                  </el-tag>
+                  <el-tag size="small" type="info" effect="plain">
+                    {{ insightData.aiGenerated ? 'AI 大模型生成' : '本地规则模板生成' }}
+                  </el-tag>
+                  <div style="flex:1"></div>
+                  <el-button size="small" @click="exportText(insightData.report, insightData.teamName + '-团队洞察.md')">导出文档</el-button>
+                </div>
+                <div class="board-stats" style="flex-wrap:wrap;">
+                  <div class="stat-chip">成员 <b>{{ insightData.memberCount }}</b></div>
+                  <div class="stat-chip">任务 <b>{{ insightData.totalTasks }}</b></div>
+                  <div class="stat-chip stat-doing">进行中 <b>{{ insightData.doingTasks }}</b></div>
+                  <div class="stat-chip stat-done">已完成 <b>{{ insightData.doneTasks }}</b></div>
+                  <div class="stat-chip stat-wait">待审批 <b>{{ insightData.waitingTasks }}</b></div>
+                  <div class="stat-chip stat-overdue">逾期 <b>{{ insightData.overdueTasks }}</b></div>
+                  <div class="stat-chip">完成率 <b>{{ insightData.completionRate }}%</b></div>
+                  <div class="stat-chip">近7天新增 <b>{{ insightData.newLast7Days }}</b></div>
+                  <div class="stat-chip">近7天消息 <b>{{ insightData.msgLast7Days }}</b></div>
+                </div>
+                <el-table :data="insightData.memberLoads" size="small" style="margin-bottom:12px;">
+                  <el-table-column prop="username" label="成员" width="120"></el-table-column>
+                  <el-table-column label="角色" width="90">
+                    <template #default="{ row }">{{ row.role === 'owner' ? '负责人' : '成员' }}</template>
+                  </el-table-column>
+                  <el-table-column prop="total" label="任务总数" width="90"></el-table-column>
+                  <el-table-column prop="doing" label="进行中" width="80"></el-table-column>
+                  <el-table-column prop="done" label="已完成" width="80"></el-table-column>
+                  <el-table-column prop="overdue" label="逾期" width="70"></el-table-column>
+                  <el-table-column label="负荷">
+                    <template #default="{ row }">
+                      <el-tag size="small" effect="plain"
+                              :type="row.loadLevel === '超载' ? 'danger' : (row.loadLevel === '偏重' ? 'warning' : 'success')">
+                        {{ row.loadLevel }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <div class="ai-report">{{ insightData.report }}</div>
+              </div>
+
+              <!-- ---------- 结果区：项目计划 ---------- -->
+              <div class="ai-result" v-else-if="aiResultType === 'plan' && planData">
+                <div class="ai-result-head">
+                  <span class="ai-result-title">🗂 {{ planData.topic }} · 项目计划</span>
+                  <el-tag size="small" type="info" effect="plain">
+                    {{ planData.aiGenerated ? 'AI 大模型生成' : '本地规则模板生成' }}
+                  </el-tag>
+                  <el-tag size="small" effect="plain">{{ planData.weeks }} 周 · {{ planData.taskCount }} 个任务</el-tag>
+                  <div style="flex:1"></div>
+                  <el-button size="small" @click="exportText(planToMarkdown(planData), planData.topic + '-项目计划.md')">导出文档</el-button>
+                  <el-button size="small" type="primary" :loading="aiBusy === 'import'"
+                             :disabled="!planData.artifactId" @click="importPlan">导入任务看板</el-button>
+                </div>
+                <div class="ai-goal">🎯 项目目标：{{ planData.goal || '（未给出）' }}</div>
+                <div class="ai-stage" v-for="(st, si) in planData.stages" :key="si">
+                  <div class="ai-stage-title">{{ st.stageName }}
+                    <span class="ai-stage-period">{{ st.period }}</span>
+                  </div>
+                  <div class="ai-stage-goal">{{ st.goal }}</div>
+                  <div class="ai-task" v-for="(t, ti) in st.tasks" :key="ti">
+                    <span class="ai-task-no">{{ ti + 1 }}</span>
+                    <span class="ai-task-content">{{ t.taskContent }}</span>
+                    <span class="ai-task-owner">{{ t.ownerName || '待分配' }}</span>
+                    <span :class="t.priority === '高' ? 'tag-high' : 'tag-normal'">{{ t.priority }}</span>
+                    <span class="ai-task-deadline">{{ t.deadline || '未设置' }}</span>
+                  </div>
+                </div>
+                <div class="ai-report" v-if="planData.advice">💡 落地建议：{{ planData.advice }}</div>
+              </div>
+
+              <!-- ---------- 结果区：PPT ---------- -->
+              <div class="ai-result" v-else-if="aiResultType === 'ppt' && pptData">
+                <div class="ai-result-head">
+                  <span class="ai-result-title">🎞 {{ pptData.topic }} · 演示文稿</span>
+                  <el-tag size="small" type="info" effect="plain">
+                    {{ pptData.aiGenerated ? 'AI 大模型生成' : '本地规则模板生成' }}
+                  </el-tag>
+                  <el-tag size="small" effect="plain">{{ pptData.slides.length }} 页 · {{ fmtSize(pptData.fileSize) }}</el-tag>
+                  <el-tag size="small" effect="plain" v-if="pptData.themeName">
+                    <i class="theme-dot" :style="{ background: themePrimary(pptData.theme) }"></i>
+                    {{ pptData.themeName }}配色
+                  </el-tag>
+                  <div style="flex:1"></div>
+                  <el-button size="small" @click="exportText(pptToMarkdown(pptData), pptData.topic + '-PPT大纲.md')">导出文档</el-button>
+                  <el-button size="small" type="success" @click="downloadPpt">⬇ 下载 .pptx</el-button>
+                </div>
+                <div class="ai-slide" v-for="(s, i) in pptData.slides" :key="i">
+                  <span class="ai-slide-no">{{ slideTypeName(s.type) }}<br>P{{ i + 1 }}</span>
+                  <div class="ai-slide-body">
+                    <div class="ai-slide-title">{{ s.title }}</div>
+                    <div class="ai-slide-bullet" v-for="(b, bi) in s.bullets" :key="bi">· {{ b }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ---------- 结果区：纪要拆任务 ---------- -->
+              <div class="ai-result" v-else-if="aiResultType === 'meeting' && meetingData">
+                <div class="ai-result-head">
+                  <span class="ai-result-title">🧠 {{ meetingData.topic }} · 纪要解析</span>
+                  <el-tag size="small" effect="plain">{{ meetingData.tasks.length }} 条任务</el-tag>
+                  <el-tag size="small" type="info" effect="plain">
+                    {{ meetingData.aiGenerated ? 'AI 大模型解析' : '本地规则解析' }}
+                  </el-tag>
+                  <div style="flex:1"></div>
+                  <el-button size="small" type="primary" :loading="aiBusy === 'import'"
+                             :disabled="!meetingData.artifactId" @click="importMeeting">导入任务看板</el-button>
+                </div>
+                <div class="ai-note" v-if="meetingData.fallbackNote" style="margin-bottom:8px;">
+                  ⚠ {{ meetingData.fallbackNote }}
+                </div>
+                <div class="ai-task" v-for="(t, ti) in meetingData.tasks" :key="ti">
+                  <span class="ai-task-no">{{ ti + 1 }}</span>
+                  <span class="ai-task-content">{{ t.taskContent }}</span>
+                  <span class="ai-task-owner">{{ t.ownerName || '待分配' }}</span>
+                  <span :class="t.priority === '高' ? 'tag-high' : 'tag-normal'">{{ t.priority }}</span>
+                  <span class="ai-task-deadline">{{ t.deadline || '未设置' }}</span>
+                </div>
+              </div>
+
+              <!-- ---------- 结果区：团队周报 ---------- -->
+              <div class="ai-result" v-else-if="aiResultType === 'weekly' && weeklyData">
+                <div class="ai-result-head">
+                  <span class="ai-result-title">📰 {{ weeklyData.teamName }} · 团队周报</span>
+                  <el-tag size="small" effect="plain">{{ weeklyData.periodStart }} ~ {{ weeklyData.periodEnd }}</el-tag>
+                  <el-tag size="small" type="info" effect="plain">
+                    {{ weeklyData.aiGenerated ? 'AI 大模型生成' : '本地规则模板生成' }}
+                  </el-tag>
+                  <div style="flex:1"></div>
+                  <el-button size="small" @click="exportText(weeklyData.report, weeklyData.teamName + '-周报.md')">导出文档</el-button>
+                  <el-button size="small" type="success" :loading="aiBusy === 'push'"
+                             :disabled="!weeklyData.artifactId" @click="pushWeekly">推送到聊天室</el-button>
+                </div>
+                <div class="board-stats" style="flex-wrap:wrap;">
+                  <div class="stat-chip">任务 <b>{{ weeklyData.stats.totalTasks }}</b></div>
+                  <div class="stat-chip stat-doing">进行中 <b>{{ weeklyData.stats.doingTasks }}</b></div>
+                  <div class="stat-chip stat-done">已完成 <b>{{ weeklyData.stats.doneTasks }}</b></div>
+                  <div class="stat-chip stat-overdue">逾期 <b>{{ weeklyData.stats.overdueTasks }}</b></div>
+                  <div class="stat-chip">完成率 <b>{{ weeklyData.stats.completionRate }}%</b></div>
+                  <div class="stat-chip">近7天消息 <b>{{ weeklyData.stats.msgLast7Days }}</b></div>
+                </div>
+                <div class="ai-report">{{ weeklyData.report }}</div>
+              </div>
+
+              <!-- ---------- 结果区：团队数据问答 ---------- -->
+              <div class="ai-result" v-else-if="aiResultType === 'ask' && askData">
+                <div class="ai-result-head">
+                  <span class="ai-result-title">💬 团队数据问答</span>
+                  <el-tag size="small" type="info" effect="plain">
+                    {{ askData.aiGenerated ? 'AI 大模型回答' : '本地规则回答' }}
+                  </el-tag>
+                </div>
+                <div class="ai-goal">❓ {{ askData.question }}</div>
+                <div class="ai-answer">{{ askData.answer }}</div>
+              </div>
+
+              <div class="ai-empty" v-else>
+                选择上方任一功能开始生成，AI 结果会显示在这里 👆
+              </div>
+
+              <!-- ---------- 生成历史 ---------- -->
+              <div class="ai-result" v-if="aiHistory.length">
+                <div class="ai-result-head">
+                  <span class="ai-result-title">🕘 生成历史</span>
+                  <div style="flex:1"></div>
+                  <el-button size="small" text @click="loadAiHistory">刷新</el-button>
+                </div>
+                <div class="ai-history-item" v-for="h in aiHistory" :key="h.id">
+                  <el-tag size="small" effect="plain">{{ h.genTypeName }}</el-tag>
+                  <i class="theme-dot" v-if="h.themeColor" :style="{ background: h.themeColor }" :title="h.themeName + '配色'"></i>
+                  <span style="flex:1;color:#2d3436;">{{ h.topic }}</span>
+                  <span class="ai-history-time">{{ h.username }} · {{ fmtDateTime(h.createTime) }}</span>
+                  <el-button size="small" text type="primary" @click="viewArtifact(h)">查看</el-button>
+                </div>
+              </div>
+            </div>
+          </el-tab-pane>
+        </el-tabs>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 团队引导页（已登录但未加入任何团队） ================= -->
+  <div class="login-wrap" v-else>
+    <div class="login-card" style="width:460px;text-align:center;">
+      <div class="login-logo">👥</div>
+      <div class="login-title">你还没有加入任何团队</div>
+      <div class="login-sub">选一种方式开始协作</div>
+      <div style="text-align:left;font-size:13px;color:#5a6675;line-height:1.9;
+                  background:#f7f9fc;border:1px solid #e8ecf3;border-radius:10px;
+                  padding:14px 16px;margin-bottom:22px;">
+        · <b>创建我的团队</b>：你会成为该团队负责人，可邀请同事凭邀请码加入，并管理任务与成员。<br>
+        · <b>凭邀请码加入</b>：向同事索要 6 位邀请码，加入后即可进入团队聊天室与任务看板。
+      </div>
+      <el-button type="primary" size="large" style="width:100%" @click="createTeam">＋ 创建我的团队</el-button>
+      <el-button type="success" size="large" style="width:100%;margin:12px 0 0" @click="joinTeam">凭邀请码加入团队</el-button>
+      <el-button text style="width:100%;margin-top:8px" @click="doLogout">退出登录</el-button>
+      <div class="login-tip">
+        当前账号：{{ me.username }}（显示昵称）<br>
+        加入团队后即可使用聊天室 / 任务看板 / AI 工作台
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, nextTick } = Vue;
+
+createApp({
+  setup() {
+    // ---------- 登录态 ----------
+    const token = ref(localStorage.getItem('cobot_token') || '');
+    const loggedIn = ref(false);
+    const me = reactive({ userId: null, username: '' });
+    const loginTab = ref('login');
+    const loginForm = reactive({ account: '', password: 'CHANGE_ME' });
+    const regForm = reactive({ account: '', nickname: '', password: 'CHANGE_ME' });
+    /** 已登录但未加入任何团队：为 true 时渲染引导页（创建团队 / 凭邀请码加入） */
+    const needTeam = ref(false);
+    const loginLoading = ref(false);
+    const regLoading = ref(false);
+
+    // ---------- 主应用状态 ----------
+    const myTeams = ref([]);
+    const currentTeamId = ref(null);
+    const members = ref([]);
+    const activeTab = ref('chat');
+    const messages = ref([]);
+    const tasks = ref([]);
+    const pendingTask = ref(null);
+    const onlyMine = ref(false);
+    const filterOwner = ref('');
+    const inputText = ref('');
+    const sending = ref(false);
+    const msgListRef = ref(null);
+    // 修改密码 / 任务指派弹窗状态
+    const pwdDialog = ref(false);
+    const pwdForm = reactive({ oldPassword: '', newPassword: '' });
+    const assignDialog = ref(false);
+    const assignTask = ref(null);
+    const assignOwner = ref('');
+    // AI 工作台状态
+    const aiBusy = ref('');            // 当前进行中的 AI 任务：insight / plan / ppt / import
+    const aiResultType = ref('');      // 当前结果区展示的类型
+    const insightData = ref(null);     // 团队洞察结果
+    const planData = ref(null);        // 项目计划结果
+    const pptData = ref(null);         // PPT 结果
+    const aiHistory = ref([]);         // 生成历史
+    const planForm = reactive({ topic: '', weeks: 4 });
+    const pptForm = reactive({ topic: '', slideCount: 8, scene: 'report', theme: 'blue' });
+    const themes = ref([]);            // 可选 PPT 配色主题（后端 /api/ai/themes 下发）
+    // 第二期 AI 能力：纪要拆任务 / 周报 / 团队问答
+    const meetingForm = reactive({ notes: '' });
+    const meetingData = ref(null);
+    const weeklyData = ref(null);
+    const qaForm = reactive({ question: '' });
+    const askData = ref(null);
+    // 问答快捷问题（点一下即填入）
+    const QaSamples = ['现在有几条逾期任务？', '谁手上活最多？', '团队任务完成率多少？', '还有多少待审批任务？'];
+    // 消息增强：未读数 + 附件选择框
+    const unreadCount = ref(0);
+    const fileInputRef = ref(null);
+    // 看板筛选与分页
+    const filterStatus = ref('');
+    const filterKeyword = ref('');
+    const page = ref(1);
+    const pageSize = ref(8);
+    let pollTimer = null;
+    let boardTimer = null;
+
+    // ---------- 成员栏：搜索 + 负责人置顶分组 + 头像渐变配色 ----------
+    const memberSearch = ref('');
+    /** 按搜索词过滤，负责人排前面并分为「负责人 / 成员」两组 */
+    const memberGroups = computed(() => {
+      const kw = memberSearch.value.trim().toLowerCase();
+      const filtered = members.value
+        .filter(m => !kw || m.username.toLowerCase().includes(kw))
+        .slice()
+        .sort((a, b) => ((a.role === 'owner' ? 0 : 1) - (b.role === 'owner' ? 0 : 1)) || (a.id - b.id));
+      const owners = filtered.filter(m => m.role === 'owner');
+      const others = filtered.filter(m => m.role !== 'owner');
+      const groups = [];
+      if (owners.length) groups.push({ label: '负责人', list: owners });
+      if (others.length) groups.push({ label: '成员', list: others });
+      return groups;
+    });
+    /** 头像渐变色板：按用户名哈希稳定取色，同名永远同色 */
+    const AVATAR_COLORS = [
+      ['#4b7bec', '#3867d6'], ['#00b894', '#009874'], ['#e84393', '#d6307f'],
+      ['#fd9644', '#e67e22'], ['#8e44ad', '#6c3483'], ['#16a085', '#117a65'],
+      ['#2d98da', '#2680c2'], ['#eb3b5a', '#c72e4b'],
+    ];
+    function avatarStyle(name) {
+      let h = 0;
+      for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+      const c = AVATAR_COLORS[h % AVATAR_COLORS.length];
+      return { background: 'linear-gradient(135deg,' + c[0] + ',' + c[1] + ')' };
+    }
+
+    // ---------- 统一请求封装（自动带 Token，401 自动回登录页） ----------
+    async function api(method, path, body) {
+      const resp = await fetch(path, {
+        method,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Authorization': 'Bearer ' + token.value
+        },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      // 401 -> 会话失效，回登录页
+      if (resp.status === 401) {
+        forceLogout();
+        throw new Error('unauthorized');
+      }
+      return resp.json();
+    }
+
+    function forceLogout() {
+      localStorage.removeItem('cobot_token');
+      token.value = '';
+      loggedIn.value = false;
+      stopPolling();
+      ElementPlus.ElMessage.warning('请先登录');
+    }
+
+    function fmtTime(t) {
+      if (!t) return '';
+      return t.substring(11, 16);
+    }
+
+    function scrollToBottom() {
+      nextTick(() => {
+        const el = msgListRef.value;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    }
+
+    // ---------- 登录 / 注册 / 退出 ----------
+    async function doLogin() {
+      if (!loginForm.account || !loginForm.password) {
+        ElementPlus.ElMessage.warning('请输入账号和密码');
+        return;
+      }
+      loginLoading.value = true;
+      try {
+        const resp = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify(loginForm)
+        }).then(r => r.json());
+        if (resp.code !== 200) {
+          ElementPlus.ElMessage.error(resp.msg);
+          return;
+        }
+        token.value = resp.data.token;
+        localStorage.setItem('cobot_token', token.value);
+        me.userId = resp.data.userId;
+        me.username = resp.data.username;
+        await enterApp();
+        ElementPlus.ElMessage.success('欢迎回来，' + me.username);
+      } finally {
+        loginLoading.value = false;
+      }
+    }
+
+    async function doRegister() {
+      if (!regForm.account || !regForm.password) {
+        ElementPlus.ElMessage.warning('请输入账号和密码');
+        return;
+      }
+      regLoading.value = true;
+      try {
+        const resp = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify(regForm)
+        }).then(r => r.json());
+        if (resp.code !== 200) {
+          ElementPlus.ElMessage.error(resp.msg);
+          return;
+        }
+        ElementPlus.ElMessage.success(resp.data);
+        loginTab.value = 'login';
+        loginForm.account = regForm.account;
+        loginForm.password = 'CHANGE_ME';
+        regForm.account = '';
+        regForm.nickname = '';
+        regForm.password = 'CHANGE_ME';
+      } finally {
+        regLoading.value = false;
+      }
+    }
+
+    async function doLogout() {
+      try {
+        await api('POST', '/api/auth/logout');
+      } catch (e) { /* 忽略 */ }
+      forceLogout();
+    }
+
+    // ---------- 进入应用：先判断有无团队，再决定渲染主界面还是引导页 ----------
+    async function enterApp() {
+      const teamResp = await api('GET', '/api/team/my');
+      myTeams.value = teamResp.data || [];
+      if (myTeams.value.length === 0) {
+        // 无团队：渲染引导页（创建团队 / 凭邀请码加入），不渲染主界面外壳
+        needTeam.value = true;
+        loggedIn.value = true;
+        return;
+      }
+      needTeam.value = false;
+      loggedIn.value = true;
+      // 默认进入第一个团队（保持上次选择）
+      const saved = Number(localStorage.getItem('cobot_team'));
+      currentTeamId.value = myTeams.value.some(t => t.id === saved) ? saved : myTeams.value[0].id;
+      await onTeamChange();
+      await loadThemes();   // 配色主题与团队无关，进主界面时加载一次即可
+      startPolling();
+    }
+
+    async function onTeamChange() {
+      localStorage.setItem('cobot_team', currentTeamId.value);
+      messages.value = [];
+      // 切团队时清空 AI 工作台的上一个团队结果，避免串团队看到别人团队的产物
+      aiResultType.value = '';
+      insightData.value = null;
+      planData.value = null;
+      pptData.value = null;
+      meetingData.value = null;
+      weeklyData.value = null;
+      askData.value = null;
+      aiHistory.value = [];
+      // 看板筛选与分页回到初始态
+      filterStatus.value = '';
+      filterKeyword.value = '';
+      page.value = 1;
+      unreadCount.value = 0;
+      await Promise.all([loadMembers(), loadMessages(true), loadBoard(), loadAiHistory()]);
+    }
+
+    async function loadMembers() {
+      // 用含角色的成员接口（/api/team/members 返回 userId/username/role），
+      // 前端据此渲染"负责人"徽章与负责人专属操作入口
+      const resp = await api('GET', '/api/team/members?teamId=' + currentTeamId.value);
+      members.value = (resp.data || []).map(m => ({ id: m.userId, username: m.username, role: m.role }));
+    }
+
+    async function loadMessages(reset) {
+      const lastId = reset ? 0 : (messages.value.length ? messages.value[messages.value.length - 1].id : 0);
+      const resp = await api('GET', '/api/chat/list?teamId=' + currentTeamId.value + '&afterId=' + lastId);
+      if (resp.code !== 200) return;
+      const fresh = resp.data || [];
+      if (reset) {
+        messages.value = fresh;
+        scrollToBottom();
+      } else if (fresh.length) {
+        messages.value = messages.value.concat(fresh);
+        scrollToBottom();
+      }
+      // 图片附件要带 Token 才能取回，转成 blob URL 后才能显示
+      if (fresh.length) loadImageBlobs(fresh);
+      if (reset) await loadUnread();
+    }
+
+    /** 拉取当前团队未读数（红点提示条） */
+    async function loadUnread() {
+      if (!currentTeamId.value) return;
+      const resp = await api('GET', '/api/chat/unread?teamId=' + currentTeamId.value);
+      if (resp.code === 200) unreadCount.value = resp.data || 0;
+    }
+
+    /** 标记已读：把已读位置推到最新一条消息 */
+    async function markRead() {
+      const last = messages.value.length ? messages.value[messages.value.length - 1].id : 0;
+      if (!last) return;
+      await api('POST', '/api/chat/read', { teamId: currentTeamId.value, lastReadId: last });
+      unreadCount.value = 0;
+      await refreshTeamUnread();
+    }
+
+    /** 手动标记全部已读（提示条上的按钮） */
+    async function markAllRead() {
+      await markRead();
+      ElementPlus.ElMessage.success('已全部标记为已读');
+    }
+
+    /** 刷新"我的团队"列表里的未读徽章 */
+    async function refreshTeamUnread() {      const resp = await api('GET', '/api/team/my');
+      if (resp.code === 200) {
+        const list = resp.data || [];
+        // 只更新未读与待办数字，避免覆盖本地选择状态
+        list.forEach(t => {
+          const old = myTeams.value.find(x => x.id === t.id);
+          if (old) { old.unreadCount = t.unreadCount; old.pendingTaskCount = t.pendingTaskCount; }
+        });
+      }
+    }
+
+    /** 为图片消息加载 blob（接口需要 Authorization 头，不能直接用 img src） */
+    async function loadImageBlobs(list) {
+      for (const m of list) {
+        if (m.msgType === 'image' && m.revoked !== 1 && !m.blobUrl) {
+          try {
+            const res = await fetch('/api/chat/file/' + m.id, {
+              headers: { 'Authorization': 'Bearer ' + token.value }
+            });
+            if (res.ok) m.blobUrl = URL.createObjectURL(await res.blob());
+          } catch (e) { /* 图片加载失败不影响其他消息 */ }
+        }
+      }
+    }
+
+    /** 下载聊天附件（带 Token 取回后触发浏览器保存） */
+    async function downloadAttachment(msg) {
+      try {
+        const res = await fetch('/api/chat/file/' + msg.id, {
+          headers: { 'Authorization': 'Bearer ' + token.value }
+        });
+        if (!res.ok) {
+          ElementPlus.ElMessage.error('附件下载失败（可能已被删除）');
+          return;
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = msg.fileName || '附件';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        ElementPlus.ElMessage.error('附件下载失败');
+      }
+    }
+
+    /**
+     * 能否撤回该消息
+     *
+     * 与服务端 ChatController#SELF_REVOKE_MINUTES 保持一致：
+     *   负责人 = 本团队任意消息随时可撤；本人 = 发送后 2 分钟内。
+     * 前端先按同一规则隐藏按钮，避免用户点了才被服务端拒绝。
+     */
+    const SELF_REVOKE_MS = 2 * 60 * 1000;
+    function canRevoke(msg) {
+      if (!msg || msg.revoked === 1) return false;
+      if (isOwner.value) return true;
+      if (msg.senderId !== me.userId || msg.senderType !== 0) return false;
+      const t = Date.parse(String(msg.createTime).replace(' ', 'T'));
+      return !isNaN(t) && (Date.now() - t) < SELF_REVOKE_MS;
+    }
+
+    /** 撤回消息 */
+    async function revokeMsg(msg) {
+      const ok = await ElementPlus.ElMessageBox.confirm('确定撤回这条消息？', '撤回消息',
+        { type: 'warning', confirmButtonText: '撤回', cancelButtonText: '取消' }).catch(() => false);
+      if (!ok) return;
+      const resp = await api('POST', '/api/chat/revoke', { messageId: msg.id });
+      if (resp.code !== 200) {
+        ElementPlus.ElMessage.error(resp.msg);
+      } else {
+        msg.revoked = 1;
+        ElementPlus.ElMessage.success('已撤回');
+      }
+    }
+
+    /** 删除消息（负责人） */
+    async function deleteMsg(msg) {
+      const ok = await ElementPlus.ElMessageBox.confirm('确定彻底删除这条消息？不可恢复。', '删除消息',
+        { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }).catch(() => false);
+      if (!ok) return;
+      const resp = await api('POST', '/api/chat/delete', { messageId: msg.id });
+      if (resp.code !== 200) {
+        ElementPlus.ElMessage.error(resp.msg);
+        return;
+      }
+      messages.value = messages.value.filter(m => m.id !== msg.id);
+      ElementPlus.ElMessage.success('已删除');
+    }
+
+    /** 选中附件文件 */
+    function pickFile() {
+      if (fileInputRef.value) fileInputRef.value.click();
+    }
+
+    /** 附件选择完成 -> 上传 -> 作为附件消息发送 */
+    async function onFilePicked(evt) {
+      const file = evt.target.files && evt.target.files[0];
+      evt.target.value = '';   // 允许连续选同一个文件
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) {
+        ElementPlus.ElMessage.warning('单个附件不能超过 10MB');
+        return;
+      }
+      sending.value = true;
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('teamId', currentTeamId.value);
+        const up = await fetch('/api/chat/upload', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token.value },
+          body: fd
+        }).then(r => r.json());
+        if (up.code !== 200) {
+          ElementPlus.ElMessage.error(up.msg);
+          return;
+        }
+        const resp = await api('POST', '/api/chat/send', {
+          teamId: currentTeamId.value,
+          content: inputText.value.trim(),
+          msgType: up.data.msgType,
+          fileName: up.data.fileName,
+          filePath: up.data.filePath,
+          fileSize: up.data.fileSize
+        });
+        if (resp.code !== 200) {
+          ElementPlus.ElMessage.error(resp.msg);
+          return;
+        }
+        inputText.value = '';
+        await loadMessages(false);
+        ElementPlus.ElMessage.success('附件已发送');
+      } finally {
+        sending.value = false;
+      }
+    }
+
+    async function loadBoard() {
+      const resp = await api('GET', '/api/task/list?teamId=' + currentTeamId.value);
+      tasks.value = resp.data || [];
+      const p = await api('GET', '/api/task/pending?teamId=' + currentTeamId.value);
+      pendingTask.value = p.code === 200 ? p.data : null;
+    }
+
+    // ---------- 发消息 / 确认任务 / 改状态 ----------
+    async function sendMsg() {
+      const text = inputText.value.trim();
+      if (!text) return;
+      sending.value = true;
+      try {
+        const resp = await api('POST', '/api/chat/send', { teamId: currentTeamId.value, content: text });
+        if (resp.code !== 200) {
+          ElementPlus.ElMessage.error(resp.msg);
+          return;
+        }
+        inputText.value = '';
+        await loadMessages(false);
+        await loadBoard();   // 消息可能触发任务识别，同步看板
+        await markRead();    // 自己刚发过言，顺带清掉红点
+      } finally {
+        sending.value = false;
+      }
+    }
+
+    async function confirmTask() {
+      const resp = await api('POST', '/api/task/confirm', { teamId: currentTeamId.value });
+      if (resp.code !== 200) {
+        ElementPlus.ElMessage.error(resp.msg);
+      } else {
+        ElementPlus.ElMessage.success(resp.data);
+      }
+      await loadBoard();
+    }
+
+    async function changeStatus(task, status) {
+      const resp = await api('POST', '/api/task/status', { taskId: task.id, status });
+      if (resp.code !== 200) {
+        ElementPlus.ElMessage.error(resp.msg);
+      }
+      await loadBoard();
+    }
+
+    // ---------- 角色权限：负责人(owner) vs 普通成员(member) ----------
+    // 当前团队内我的角色（来自 /api/team/my 的 role 字段）
+    const isOwner = computed(() => {
+      const t = myTeams.value.find(x => x.id === currentTeamId.value);
+      return !!t && t.role === 'owner';
+    });
+
+    /** 某成员在当前团队的角色 */
+    function roleOf(userId) {
+      const m = members.value.find(x => x.id === userId);
+      return m ? m.role : 'member';
+    }
+
+    /** 能否修改该任务状态：负责人全部可改；普通成员仅自己名下任务可改 */
+    function canEditStatus(task) {
+      if (isOwner.value) return true;
+      return task.ownerName === me.username;
+    }
+
+    /** 负责人审批"待确认"任务 */
+    async function approveTask(task, approved) {
+      const resp = await api('POST', '/api/task/approve', { taskId: task.id, approved });
+      if (resp.code !== 200) {
+        ElementPlus.ElMessage.error(resp.msg);
+      } else {
+        ElementPlus.ElMessage.success(resp.data);
+      }
+      await loadBoard();
+    }
+
+    /** 负责人删除任务 */
+    async function deleteTask(task) {
+      const ok = await ElementPlus.ElMessageBox.confirm(
+        '确定删除任务 #' + task.id + '「' + task.taskContent + '」？删除后不可恢复。',
+        '删除任务', { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+      ).catch(() => false);
+      if (!ok) return;
+      const resp = await api('POST', '/api/task/delete', { taskId: task.id });
+      if (resp.code !== 200) {
+        ElementPlus.ElMessage.error(resp.msg);
+      } else {
+        ElementPlus.ElMessage.success(resp.data);
+      }
+      await loadBoard();
+    }
+
+    /** 打开指派弹窗 */
+    function openAssign(task) {
+      assignTask.value = task;
+      assignOwner.value = task.ownerName;
+      assignDialog.value = true;
+    }
+
+    /** 负责人指派/改派任务 */
+    async function doAssign() {
+      if (!assignOwner.value) {
+        ElementPlus.ElMessage.warning('请选择成员');
+        return;
+      }
+      const resp = await api('POST', '/api/task/assign',
+        { taskId: assignTask.value.id, ownerName: assignOwner.value });
+      if (resp.code !== 200) {
+        ElementPlus.ElMessage.error(resp.msg);
+      } else {
+        ElementPlus.ElMessage.success(resp.data);
+        assignDialog.value = false;
+      }
+      await loadBoard();
+    }
+
+    /** 修改密码（成功后强制重新登录） */
+    async function changePassword() {
+      if (!pwdForm.oldPassword || !pwdForm.newPassword) {
+        ElementPlus.ElMessage.warning('请填写原密码和新密码');
+        return;
+      }
+      const resp = await api('POST', '/api/auth/password',
+        { oldPassword: pwdForm.oldPassword, newPassword: pwdForm.newPassword });
+      if (resp.code !== 200) {
+        ElementPlus.ElMessage.error(resp.msg);
+        return;
+      }
+      pwdDialog.value = false;
+      pwdForm.oldPassword = pwdForm.newPassword = '';
+      ElementPlus.ElMessage.success('密码已修改，请重新登录');
+      forceLogout();
+      loggedIn.value = false;
+    }
+
+    /** 负责人：团队管理（改名 / 重置邀请码） */
+    async function teamManage() {
+      const t = currentTeam();
+      if (!t) return;
+      const action = await ElementPlus.ElMessageBox({
+        title: '团队管理 · ' + t.teamName,
+        message: '当前邀请码：' + (t.inviteCode || '无') + '（成员 ' + members.value.length + ' 人）',
+        showCancelButton: true,
+        confirmButtonText: '修改团队名',
+        cancelButtonText: '邀请码设置',
+        distinguishCancelAndClose: true
+      }).then(() => 'rename').catch(a => (a === 'cancel' ? 'invite' : 'more'));
+
+      if (action === 'rename') {
+        const r = await ElementPlus.ElMessageBox.prompt('输入新的团队名称', '修改团队名',
+          { inputValue: t.teamName }).catch(() => null);
+        if (!r) return;
+        const resp = await api('POST', '/api/team/rename', { teamId: t.id, teamName: r.value.trim() });
+        ElementPlus.ElMessage[resp.code === 200 ? 'success' : 'error'](resp.code === 200 ? resp.data : resp.msg);
+      } else if (action === 'invite') {
+        // 重置邀请码，同时设定有效期与使用次数上限
+        const r = await ElementPlus.ElMessageBox.prompt(
+          '输入「有效期小时数,使用次数上限」，如 24,10；填 0,0 表示永久有效且不限次数',
+          '邀请码设置', { inputValue: '0,0' }).catch(() => null);
+        if (!r) return;
+        const parts = (r.value || '').split(/[,，\s]+/).map(x => parseInt(x, 10) || 0);
+        const resp = await api('POST', '/api/team/reset-invite', {
+          teamId: t.id,
+          inviteExpireHours: parts[0] || 0,
+          inviteMaxUse: parts[1] || 0
+        });
+        if (resp.code === 200) {
+          const d = resp.data;
+          const expire = d.inviteExpireAt
+            ? '有效期至 ' + String(d.inviteExpireAt).replace('T', ' ').substring(0, 16)
+            : '永久有效';
+          const maxUse = d.inviteMaxUse > 0 ? ('限 ' + d.inviteMaxUse + ' 次') : '不限次数';
+          ElementPlus.ElMessageBox.alert(
+            '新邀请码：' + d.inviteCode + '\n' + expire + ' · ' + maxUse + '\n（旧邀请码已失效）', '重置成功');
+        } else {
+          ElementPlus.ElMessage.error(resp.msg);
+        }
+      } else if (action === 'more') {
+        const act2 = await ElementPlus.ElMessageBox({
+          title: '更多设置 · ' + t.teamName,
+          message: '可以设置团队公告，或解散本团队',
+          showCancelButton: true,
+          confirmButtonText: '设置团队公告',
+          cancelButtonText: '解散团队',
+          distinguishCancelAndClose: true
+        }).then(() => 'notice').catch(a => (a === 'cancel' ? 'dismiss' : null));
+
+        if (act2 === 'notice') {
+          const r = await ElementPlus.ElMessageBox.prompt('输入团队公告（留空表示清空）', '团队公告',
+            { inputValue: t.notice || '' }).catch(() => null);
+          if (!r) return;
+          const resp = await api('POST', '/api/team/notice', { teamId: t.id, notice: r.value });
+          ElementPlus.ElMessage[resp.code === 200 ? 'success' : 'error'](resp.code === 200 ? resp.data : resp.msg);
+        } else if (act2 === 'dismiss') {
+          const ok = await ElementPlus.ElMessageBox.confirm(
+            '⚠️ 解散后该团队的任务与全部聊天记录将被删除且不可恢复，确定解散「' + t.teamName + '」？',
+            '解散团队', { type: 'warning', confirmButtonText: '确认解散', cancelButtonText: '取消' }
+          ).catch(() => false);
+          if (!ok) return;
+          const resp = await api('POST', '/api/team/dismiss', { teamId: t.id });
+          if (resp.code !== 200) {
+            ElementPlus.ElMessage.error(resp.msg);
+            return;
+          }
+          ElementPlus.ElMessage.success(resp.data);
+          await reloadTeamsAndSwitch();
+          return;
+        }
+      }
+      await refreshTeams(currentTeamId.value);
+    }
+
+    /** 重新拉取团队列表；解散后自动切到剩余团队，一个不剩时回登录页 */
+    async function reloadTeamsAndSwitch() {
+      const resp = await api('GET', '/api/team/my');
+      myTeams.value = resp.data || [];
+      if (!myTeams.value.length) {
+        // 已不在任何团队：清空残留数据并落到引导页（创建团队 / 凭邀请码加入）
+        messages.value = [];
+        tasks.value = [];
+        members.value = [];
+        currentTeamId.value = null;
+        stopPolling();
+        needTeam.value = true;
+        return;
+      }
+      currentTeamId.value = myTeams.value[0].id;
+      await onTeamChange();
+    }
+
+    /** 主动退出当前团队（唯一的负责人需先转让或解散） */
+    async function leaveTeam() {
+      const t = currentTeam();
+      if (!t) return;
+      const ok = await ElementPlus.ElMessageBox.confirm(
+        '确定退出团队「' + t.teamName + '」？退出后需要重新用邀请码才能加入。',
+        '退出团队', { type: 'warning', confirmButtonText: '退出', cancelButtonText: '取消' }
+      ).catch(() => false);
+      if (!ok) return;
+      const resp = await api('POST', '/api/team/leave', { teamId: t.id });
+      if (resp.code !== 200) {
+        ElementPlus.ElMessage.error(resp.msg);
+        return;
+      }
+      ElementPlus.ElMessage.success('已退出团队');
+      await reloadTeamsAndSwitch();
+    }
+
+    /** 负责人：成员操作（设为/取消负责人、移出团队） */
+    async function memberCmd(cmd, member) {
+      const teamId = currentTeamId.value;
+      if (cmd === 'remove') {
+        const ok = await ElementPlus.ElMessageBox.confirm('确定把 ' + member.username + ' 移出团队？', '移出成员', { type: 'warning' }).catch(() => false);
+        if (!ok) return;
+        const resp = await api('POST', '/api/team/remove-member', { teamId, userId: member.id });
+        ElementPlus.ElMessage[resp.code === 200 ? 'success' : 'error'](resp.code === 200 ? resp.data : resp.msg);
+      } else {
+        const resp = await api('POST', '/api/team/set-role', { teamId, userId: member.id, role: cmd });
+        ElementPlus.ElMessage[resp.code === 200 ? 'success' : 'error'](resp.code === 200 ? resp.data : resp.msg);
+      }
+      await Promise.all([loadMembers(), loadBoard()]);
+    }
+
+    // ---------- AI 工作台：团队洞察 / 项目计划 / 一键 PPT ----------
+
+    /** 通用：把文本内容以文件形式导出到本地（纯前端，不经过服务端） */
+    function exportText(content, filename) {
+      if (!content) {
+        ElementPlus.ElMessage.warning('没有可导出的内容');
+        return;
+      }
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      ElementPlus.ElMessage.success('已导出 ' + filename);
+    }
+
+    /** 文件大小展示 */
+    function fmtSize(bytes) {
+      if (!bytes) return '0 KB';
+      return bytes < 1024 ? bytes + ' B' : (bytes / 1024).toFixed(1) + ' KB';
+    }
+
+    /** 时间展示：截到分钟 */
+    function fmtDateTime(t) {
+      if (!t) return '';
+      return String(t).substring(5, 16).replace('T', ' ');
+    }
+
+    /** PPT 页面类型中文名 */
+    function slideTypeName(type) {
+      return { cover: '封面', agenda: '目录', content: '内容', end: '结束' }[type] || '内容';
+    }
+
+    /** 项目计划 -> 纯文本文档（导出用，不含任何 Markdown 语法符号） */
+    function planToMarkdown(plan) {
+      if (!plan) return '';
+      let txt = plan.topic + ' 项目计划\n';
+      txt += '项目目标：' + (plan.goal || '未设置') + '\n';
+      txt += '计划周期：' + plan.weeks + ' 周，任务总数：' + plan.taskCount + ' 个\n\n';
+      (plan.stages || []).forEach(function (st) {
+        txt += st.stageName + '（' + st.period + '）\n';
+        txt += st.goal + '\n';
+        (st.tasks || []).forEach(function (t, i) {
+          txt += (i + 1) + '、' + t.taskContent + '，负责人：' + (t.ownerName || '待分配')
+            + '，优先级：' + t.priority + '，截止：' + (t.deadline || '未设置') + '\n';
+        });
+        txt += '\n';
+      });
+      if (plan.advice) txt += '落地建议：' + plan.advice + '\n';
+      return txt;
+    }
+
+    /** PPT 大纲 -> 纯文本文档（导出用，不含任何 Markdown 语法符号） */
+    function pptToMarkdown(outline) {
+      if (!outline) return '';
+      let txt = outline.topic + ' PPT 大纲\n';
+      if (outline.subtitle) txt += outline.subtitle + '\n';
+      txt += '\n';
+      (outline.slides || []).forEach(function (s, i) {
+        txt += '第 ' + (i + 1) + ' 页（' + slideTypeName(s.type) + '）：' + s.title + '\n';
+        (s.bullets || []).forEach(function (b) { txt += '  ' + b + '\n'; });
+        txt += '\n';
+      });
+      return txt;
+    }
+
+    /** 1. 团队数据洞察（负责人专属） */
+    async function runInsight() {
+      if (!isOwner.value) {
+        ElementPlus.ElMessage.warning('团队数据洞察为负责人专属功能');
+        return;
+      }
+      aiBusy.value = 'insight';
+      try {
+        const resp = await api('GET', '/api/ai/insight?teamId=' + currentTeamId.value);
+        if (resp.code !== 200) {
+          ElementPlus.ElMessage.error(resp.msg);
+          return;
+        }
+        insightData.value = resp.data;
+        aiResultType.value = 'insight';
+        ElementPlus.ElMessage.success('团队洞察已生成');
+        await loadAiHistory();
+      } finally {
+        aiBusy.value = '';
+      }
+    }
+
+    /** 2. 一键生成项目计划 */
+    async function runPlan() {
+      if (!planForm.topic.trim()) {
+        ElementPlus.ElMessage.warning('请先填写项目主题');
+        return;
+      }
+      aiBusy.value = 'plan';
+      try {
+        const resp = await api('POST', '/api/ai/plan', {
+          teamId: currentTeamId.value, topic: planForm.topic.trim(), weeks: planForm.weeks
+        });
+        if (resp.code !== 200) {
+          ElementPlus.ElMessage.error(resp.msg);
+          return;
+        }
+        planData.value = resp.data;
+        aiResultType.value = 'plan';
+        ElementPlus.ElMessage.success('项目计划已生成（' + resp.data.taskCount + ' 个任务）');
+        await loadAiHistory();
+      } finally {
+        aiBusy.value = '';
+      }
+    }
+
+    /** 2.1 把计划批量导入任务看板 */
+    // ---------- 第二期 AI 能力：纪要拆任务 / 周报 / 问答 ----------
+
+    /** 会议纪要 -> 任务清单 */
+    async function runMeeting() {
+      const notes = meetingForm.notes.trim();
+      if (notes.length < 8) {
+        ElementPlus.ElMessage.warning('请粘贴至少 8 个字的会议纪要');
+        return;
+      }
+      aiBusy.value = 'meeting';
+      try {
+        const resp = await api('POST', '/api/ai/meeting', { teamId: currentTeamId.value, notes });
+        if (resp.code !== 200) {
+          ElementPlus.ElMessage.error(resp.msg);
+          return;
+        }
+        meetingData.value = resp.data;
+        aiResultType.value = 'meeting';
+        ElementPlus.ElMessage.success('已解析出 ' + (resp.data.tasks || []).length + ' 条任务');
+      } finally {
+        aiBusy.value = '';
+      }
+    }
+
+    /** 把纪要任务导入任务看板 */
+    async function importMeeting() {
+      if (!meetingData.value || !meetingData.value.artifactId) return;
+      const tip = isOwner.value ? '将直接进入「进行中」' : '将进入「待确认」，需负责人审批';
+      const ok = await ElementPlus.ElMessageBox.confirm(
+        '把 ' + meetingData.value.tasks.length + ' 条任务导入任务看板（' + tip + '）？',
+        '导入任务看板', { type: 'info', confirmButtonText: '确定导入', cancelButtonText: '取消' }
+      ).catch(() => false);
+      if (!ok) return;
+      aiBusy.value = 'import';
+      try {
+        const resp = await api('POST', '/api/ai/meeting/import',
+          { teamId: currentTeamId.value, artifactId: meetingData.value.artifactId });
+        if (resp.code !== 200) {
+          ElementPlus.ElMessage.error(resp.msg);
+          return;
+        }
+        ElementPlus.ElMessage.success(resp.data);
+        await loadBoard();
+        await loadAiHistory();
+        activeTab.value = 'board';
+      } finally {
+        aiBusy.value = '';
+      }
+    }
+
+    /** 生成团队周报 */
+    async function runWeekly() {
+      aiBusy.value = 'weekly';
+      try {
+        const resp = await api('POST', '/api/ai/weekly', { teamId: currentTeamId.value });
+        if (resp.code !== 200) {
+          ElementPlus.ElMessage.error(resp.msg);
+          return;
+        }
+        weeklyData.value = resp.data;
+        aiResultType.value = 'weekly';
+        await loadAiHistory();
+        ElementPlus.ElMessage.success('周报已生成');
+      } finally {
+        aiBusy.value = '';
+      }
+    }
+
+    /** 把周报推送到聊天室 */
+    async function pushWeekly() {
+      if (!weeklyData.value || !weeklyData.value.artifactId) return;
+      aiBusy.value = 'push';
+      try {
+        const resp = await api('POST', '/api/ai/weekly/push',
+          { teamId: currentTeamId.value, artifactId: weeklyData.value.artifactId });
+        if (resp.code !== 200) {
+          ElementPlus.ElMessage.error(resp.msg);
+          return;
+        }
+        ElementPlus.ElMessage.success(resp.data);
+        await loadMessages(false);
+      } finally {
+        aiBusy.value = '';
+      }
+    }
+
+    /** 团队数据问答 */
+    async function runAsk() {
+      const question = qaForm.question.trim();
+      if (!question) {
+        ElementPlus.ElMessage.warning('请输入要问的问题');
+        return;
+      }
+      aiBusy.value = 'ask';
+      try {
+        const resp = await api('POST', '/api/ai/ask', { teamId: currentTeamId.value, question });
+        if (resp.code !== 200) {
+          ElementPlus.ElMessage.error(resp.msg);
+          return;
+        }
+        askData.value = Object.assign({ question }, resp.data);
+        aiResultType.value = 'ask';
+        await loadAiHistory();
+      } finally {
+        aiBusy.value = '';
+      }
+    }
+
+    async function importPlan() {
+      if (!planData.value || !planData.value.artifactId) return;
+      const tip = isOwner.value
+        ? '负责人导入，任务将直接进入「进行中」'
+        : '成员导入，任务将进入「待确认」，需负责人审批后开始执行';
+      const ok = await ElementPlus.ElMessageBox.confirm(
+        '将把 ' + planData.value.taskCount + ' 条计划任务导入任务看板（' + tip + '），确定继续？',
+        '导入任务看板', { type: 'info', confirmButtonText: '确定导入', cancelButtonText: '取消' }
+      ).catch(() => false);
+      if (!ok) return;
+      aiBusy.value = 'import';
+      try {
+        const resp = await api('POST', '/api/ai/plan/import',
+          { teamId: currentTeamId.value, artifactId: planData.value.artifactId });
+        if (resp.code !== 200) {
+          ElementPlus.ElMessage.error(resp.msg);
+          return;
+        }
+        ElementPlus.ElMessage.success(resp.data);
+        await loadBoard();
+        activeTab.value = 'board';   // 切到看板让用户直接看到导入结果
+      } finally {
+        aiBusy.value = '';
+      }
+    }
+
+    /** 3. 一键生成 PPT */
+    async function runPpt() {
+      if (!pptForm.topic.trim()) {
+        ElementPlus.ElMessage.warning('请先填写演示主题');
+        return;
+      }
+      aiBusy.value = 'ppt';
+      try {
+        const resp = await api('POST', '/api/ai/ppt', {
+          teamId: currentTeamId.value,
+          topic: pptForm.topic.trim(),
+          slideCount: pptForm.slideCount,
+          scene: pptForm.scene,
+          theme: pptForm.theme
+        });
+        if (resp.code !== 200) {
+          ElementPlus.ElMessage.error(resp.msg);
+          return;
+        }
+        pptData.value = resp.data;
+        aiResultType.value = 'ppt';
+        ElementPlus.ElMessage.success('PPT 已生成，共 ' + resp.data.slides.length + ' 页');
+        await loadAiHistory();
+      } finally {
+        aiBusy.value = '';
+      }
+    }
+
+    /** 3.1 下载生成的 .pptx（带 Token 请求，避免文件变成公开链接） */
+    async function downloadPpt() {
+      if (!pptData.value || !pptData.value.artifactId) return;
+      const resp = await fetch('/api/ai/file/' + pptData.value.artifactId, {
+        headers: { 'Authorization': 'Bearer ' + token.value }
+      });
+      if (resp.status === 401) { forceLogout(); return; }
+      if (!resp.ok) {
+        ElementPlus.ElMessage.error('下载失败，请重新生成');
+        return;
+      }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = pptData.value.fileName || 'CoBot演示文稿.pptx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      ElementPlus.ElMessage.success('已开始下载 ' + a.download);
+    }
+
+    /** 生成历史 */
+    async function loadAiHistory() {
+      if (!currentTeamId.value) return;
+      const resp = await api('GET', '/api/ai/history?teamId=' + currentTeamId.value);
+      aiHistory.value = resp.code === 200 ? (resp.data || []) : [];
+    }
+
+    /** 加载可选 PPT 配色主题（后端维护，前端不硬编码） */
+    async function loadThemes() {
+      const resp = await api('GET', '/api/ai/themes');
+      themes.value = resp.code === 200 ? (resp.data || []) : [];
+    }
+
+    /** 取某主题的主色 hex（结果卡片画色点用） */
+    function themePrimary(key) {
+      const t = themes.value.find(x => x.key === key);
+      return t ? t.primary : '#2B4CA0';
+    }
+
+    /** 历史回看：把历史产物重新加载到结果区 */
+    async function viewArtifact(item) {
+      const resp = await api('GET', '/api/ai/detail/' + item.id);
+      if (resp.code !== 200) {
+        ElementPlus.ElMessage.error(resp.msg);
+        return;
+      }
+      const d = resp.data;
+      try {
+        if (d.genType === 'plan') {
+          planData.value = JSON.parse(d.content);
+          aiResultType.value = 'plan';
+        } else if (d.genType === 'ppt') {
+          pptData.value = JSON.parse(d.content);
+          aiResultType.value = 'ppt';
+        } else {
+          ElementPlus.ElMessageBox.alert(d.content || '（无内容）', d.topic || '团队洞察', { customClass: 'ai-detail-box' });
+          return;
+        }
+        ElementPlus.ElMessage.success('已加载：' + (item.topic || ''));
+      } catch (e) {
+        ElementPlus.ElMessage.error('内容解析失败，可能已损坏');
+      }
+    }
+
+    // ---------- 团队自助管理：邀请码 / 建团队 / 加入团队 ----------
+    function currentTeam() {
+      return myTeams.value.find(t => t.id === currentTeamId.value);
+    }
+
+    async function showInvite() {
+      const t = currentTeam();
+      if (!t) return;
+      if (!t.inviteCode) {
+        ElementPlus.ElMessage.info('该团队暂无邀请码（旧团队），可用「建团队」新建带邀请码的团队');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(t.inviteCode);
+        ElementPlus.ElMessage.success('「' + t.teamName + '」邀请码：' + t.inviteCode + '（已复制，发给同事即可加入）');
+      } catch (e) {
+        ElementPlus.ElMessageBox.alert(t.inviteCode, '「' + t.teamName + '」的邀请码');
+      }
+    }
+
+    async function createTeam() {
+      const resp0 = await ElementPlus.ElMessageBox.prompt('给新团队起个名字', '创建团队', {
+        confirmButtonText: '创建', cancelButtonText: '取消',
+        inputPattern: /\S+/, inputErrorMessage: '名称不能为空'
+      }).catch(() => null);
+      if (!resp0) return;
+      const resp = await api('POST', '/api/team/create', { teamName: resp0.value.trim() });
+      if (resp.code !== 200) {
+        ElementPlus.ElMessage.error(resp.msg);
+        return;
+      }
+      ElementPlus.ElMessage.success('团队已创建，邀请码：' + resp.data.inviteCode);
+      await refreshTeams(resp.data.id);
+      await enterApp();   // 引导页 -> 主界面：重新进入，needTeam 变 false
+    }
+
+    async function joinTeam() {
+      const resp0 = await ElementPlus.ElMessageBox.prompt('请输入邀请码（可向团队成员索要）', '加入团队', {
+        confirmButtonText: '加入', cancelButtonText: '取消',
+        inputPattern: /\S+/, inputErrorMessage: '邀请码不能为空'
+      }).catch(() => null);
+      if (!resp0) return;
+      const resp = await api('POST', '/api/team/join', { inviteCode: resp0.value.trim() });
+      if (resp.code !== 200) {
+        ElementPlus.ElMessage.error(resp.msg);
+        return;
+      }
+      ElementPlus.ElMessage.success('已加入「' + resp.data.teamName + '」');
+      await refreshTeams(resp.data.id);
+      await enterApp();   // 引导页 -> 主界面：重新进入，needTeam 变 false
+    }
+
+    async function refreshTeams(switchToId) {
+      const teamResp = await api('GET', '/api/team/my');
+      myTeams.value = teamResp.data || [];
+      if (myTeams.value.length > 0) {
+        currentTeamId.value = switchToId || currentTeamId.value;
+        if (!myTeams.value.some(t => t.id === currentTeamId.value)) {
+          currentTeamId.value = myTeams.value[0].id;
+        }
+        await onTeamChange();
+      }
+    }
+
+    // ---------- 看板统计 / 筛选 / 逾期判断 ----------
+    function isOverdue(task) {
+      if (!task.deadline || task.taskStatus === '已完成' || task.taskStatus === '归档') return false;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const dl = new Date(task.deadline + 'T00:00:00');
+      return dl < today;
+    }
+
+    /** 看板筛选后的任务（状态 / 关键字 / 负责人 / 只看我的） */
+    const filteredTasks = computed(() => {
+      let list = tasks.value;
+      if (onlyMine.value) list = list.filter(t => t.ownerName === me.username);
+      if (filterOwner.value) list = list.filter(t => t.ownerName === filterOwner.value);
+      if (filterStatus.value) list = list.filter(t => t.taskStatus === filterStatus.value);
+      const kw = filterKeyword.value.trim().toLowerCase();
+      if (kw) list = list.filter(t => (t.taskContent || '').toLowerCase().includes(kw));
+      return list;
+    });
+
+    /** 当前页任务（前端分页，数据量小无需后端分页） */
+    const pagedTasks = computed(() => {
+      const start = (page.value - 1) * pageSize.value;
+      return filteredTasks.value.slice(start, start + pageSize.value);
+    });
+
+    /** 翻页时回到列表顶部 */
+    function onPageChange(p) {
+      page.value = p;
+    }
+
+    /** 任务状态分布（纯 CSS 条形图，不依赖任何图表库，离线可用） */
+    const statusBars = computed(() => {
+      const defs = [
+        { label: '进行中', status: '进行中', color: '#4b7bec' },
+        { label: '已完成', status: '已完成', color: '#26de81' },
+        { label: '待审批', status: '待确认', color: '#f7b731' },
+        { label: '已归档', status: '归档', color: '#a4adbd' },
+      ];
+      const total = Math.max(1, tasks.value.length);
+      return defs.map(d => {
+        const value = tasks.value.filter(t => t.taskStatus === d.status).length;
+        return { label: d.label, value, color: d.color, percent: Math.round(value * 100 / total) };
+      });
+    });
+
+    /** 成员负荷（进行中任务数，颜色随负荷等级变化） */
+    const loadBars = computed(() => {
+      const doing = {};
+      const overdue = {};
+      tasks.value.forEach(t => {
+        if (!t.ownerName) return;
+        if (t.taskStatus === '进行中') doing[t.ownerName] = (doing[t.ownerName] || 0) + 1;
+        if (isOverdue(t)) overdue[t.ownerName] = (overdue[t.ownerName] || 0) + 1;
+      });
+      const names = Object.keys(doing).concat(Object.keys(overdue))
+        .filter((v, i, arr) => arr.indexOf(v) === i);
+      const max = Math.max(1, ...names.map(n => (doing[n] || 0) + (overdue[n] || 0)));
+      return names.map(n => {
+        const d = doing[n] || 0;
+        const o = overdue[n] || 0;
+        return {
+          name: n, doing: d, overdue: o,
+          percent: Math.round((d + o) * 100 / max),
+          color: o >= 2 ? '#eb3b5a' : (o === 1 || d >= 4 ? '#f7b731' : '#4b7bec')
+        };
+      }).sort((a, b) => (b.doing + b.overdue) - (a.doing + a.overdue));
+    });
+
+    /** 导出任务看板 Excel（带 Token 取回后触发下载） */
+    async function exportTasks() {
+      try {
+        const url = '/api/task/export?teamId=' + currentTeamId.value
+          + (filterStatus.value ? '&status=' + encodeURIComponent(filterStatus.value) : '');
+        const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token.value } });
+        if (!res.ok) {
+          ElementPlus.ElMessage.error('导出失败，请稍后重试');
+          return;
+        }
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = (currentTeamName() || '团队') + '-任务看板.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+        ElementPlus.ElMessage.success('已导出 Excel');
+      } catch (e) {
+        ElementPlus.ElMessage.error('导出失败');
+      }
+    }
+
+    /** 当前团队名称 */
+    function currentTeamName() {
+      const t = myTeams.value.find(x => x.id === currentTeamId.value);
+      return t ? t.teamName : '';
+    }
+
+    const stat = computed(() => ({
+      doing: tasks.value.filter(t => t.taskStatus === '进行中').length,
+      done: tasks.value.filter(t => t.taskStatus === '已完成').length,
+      overdue: tasks.value.filter(isOverdue).length,
+      waiting: tasks.value.filter(t => t.taskStatus === '待确认').length
+    }));
+
+    // ---------- 轮询 ----------
+    function startPolling() {
+      stopPolling();
+      pollTimer = setInterval(() => loadMessages(false), 2000);
+      boardTimer = setInterval(() => loadBoard(), 5000);
+    }
+    function stopPolling() {
+      if (pollTimer) clearInterval(pollTimer);
+      if (boardTimer) clearInterval(boardTimer);
+      pollTimer = boardTimer = null;
+    }
+
+    // ---------- 启动：有 Token 则自动恢复会话 ----------
+    (async function init() {
+      if (token.value) {
+        try {
+          const resp = await api('GET', '/api/auth/me');
+          if (resp.code === 200) {
+            me.userId = resp.data.userId;
+            me.username = resp.data.username;
+            await enterApp();
+            return;
+          }
+        } catch (e) { /* 401 已由 api() 处理 */ }
+      }
+      loggedIn.value = false;
+    })();
+
+    return {
+      loggedIn, needTeam, me, loginTab, loginForm, regForm, loginLoading, regLoading,
+      myTeams, currentTeamId, members, activeTab, messages, tasks, pendingTask,
+      onlyMine, filterOwner, filteredTasks, pagedTasks, stat,
+      filterStatus, filterKeyword, page, pageSize, onPageChange, statusBars, loadBars,
+      inputText, sending, msgListRef,
+      pwdDialog, pwdForm, assignDialog, assignTask, assignOwner,
+      doLogin, doRegister, doLogout, onTeamChange, sendMsg, confirmTask, changeStatus, fmtTime,
+      showInvite, createTeam, joinTeam, leaveTeam, isOverdue,
+      isOwner, roleOf, canEditStatus, approveTask, deleteTask, openAssign, doAssign,
+      changePassword, teamManage, memberCmd,
+      // 成员栏美化：搜索 + 分组 + 头像配色
+      memberSearch, memberGroups, avatarStyle,
+      // 消息增强：附件 / 撤回 / 未读
+      unreadCount, fileInputRef, markRead, markAllRead, canRevoke, revokeMsg, deleteMsg,
+      pickFile, onFilePicked, downloadAttachment,
+      // 看板增强：导出 Excel
+      exportTasks,
+      // AI 工作台
+      aiBusy, aiResultType, insightData, planData, pptData, aiHistory, planForm, pptForm,
+      runInsight, runPlan, importPlan, runPpt, downloadPpt, loadAiHistory, viewArtifact,
+      themes, themePrimary,
+      // AI 第二期：纪要拆任务 / 周报 / 问答
+      meetingForm, meetingData, weeklyData, qaForm, askData, QaSamples,
+      runMeeting, importMeeting, runWeekly, pushWeekly, runAsk,
+      exportText, fmtSize, fmtDateTime, slideTypeName, planToMarkdown, pptToMarkdown
+    };
+  }
+}).use(ElementPlus).mount('#app');
+</script>
+</body>
+</html>

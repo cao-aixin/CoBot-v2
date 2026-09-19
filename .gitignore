@@ -1,0 +1,33 @@
+# ---- 构建产物 ----
+target/
+*.jar
+*.war
+*.log
+*.log.*
+logs/
+
+# ---- 运行期数据（附件 / AI 产物文件落盘目录） ----
+data/
+upload/
+
+# ---- IDE ----
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# ---- ★ 敏感配置：包含数据库口令与大模型 API Key，绝不提交 ----
+src/main/resources/application-local.yml
+.env
+.env.*
+
+# ---- 临时 / QA 产物 ----
+*.tmp
+qa_*.txt
+.qa-*.txt
+.playwright-cli/
+backend-run*.log*
+
+# 前端自检脚本（test/check_frontend.js）自动下载的 Vue 编译器缓存
+.verify-cache/

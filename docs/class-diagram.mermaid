@@ -1,0 +1,153 @@
+classDiagram
+    direction TB
+
+    class AbstractAgent~T~ {
+        <<abstract>>
+        #AgentAuditor auditor
+        #LlmSupport llm
+        +execute(AgentContext ctx) AgentResult~T~
+        +name() String
+        #trySkill(AgentContext ctx)* SkillOutcome~T~
+        #callLlm(AgentContext ctx)* T
+        #fallbackLocal(AgentContext ctx)* T
+        #polish(T skillData, AgentContext ctx) T
+        #llmTimeoutSeconds() int
+        #llmAvailable() boolean
+    }
+
+    class AgentContext {
+        -Long teamId
+        -Long userId
+        -String requesterName
+        -Map~String,Object~ params
+        +str(key) String
+        +int$(key, def) int
+        +req(key) String
+    }
+
+    class AgentResult~T~ {
+        <<record>>
+        +T data
+        +String source
+        +long costMs
+    }
+
+    class SkillOutcome~T~ {
+        +boolean hit
+        +T data
+        +hit(data)$ SkillOutcome~T~
+        +miss()$ SkillOutcome~T~
+    }
+
+    class AgentSource {
+        <<enumeration>>
+        SKILL
+        LLM
+        FALLBACK
+    }
+
+    class AgentRegistry {
+        -Map~String,AbstractAgent~ agents
+        +get(name) AbstractAgent
+        +exists(name) boolean
+    }
+
+    class AgentAuditor {
+        -AuditService auditService
+        +record(ctx, agentName, source, costMs) void
+    }
+
+    class LlmSupport {
+        -ChatClient chatClient
+        +callLlm(system, user) String
+        +callWithTimeout(task, seconds) T
+        +parseJson(raw, clazz) T
+        +parseJsonArray(raw, typeRef) List~T~
+        +toJson(obj) String
+    }
+
+    class AiArtifactStore {
+        +save(teamId, userId, genType, topic, content) Long
+        +saveWithFile(teamId, userId, genType, topic, theme, content, fileName, fileBytes) Long
+    }
+
+    class ChatAgent {
+        -LocalAgentService localAgentService
+        -AiTaskParseService llmChatService
+        +trySkill(ctx) SkillOutcome~String~
+        +callLlm(ctx) String
+        +fallbackLocal(ctx) String
+    }
+    class InsightAgent {
+        -TeamStatsService teamStatsService
+        -InsightSkill insightSkill
+        -AiArtifactStore artifactStore
+    }
+    class PlanAgent {
+        -PlanSkill planSkill
+        -AiArtifactStore artifactStore
+    }
+    class PptAgent {
+        -PptSkill pptSkill
+        -PptxBuildService pptxBuildService
+        -AiArtifactStore artifactStore
+        +polish(skillData, ctx) PptOutlineVO
+    }
+    class MeetingAgent {
+        -MeetingSkill meetingSkill
+        -AiArtifactStore artifactStore
+    }
+    class WeeklyAgent {
+        -TeamStatsService teamStatsService
+        -WeeklySkill weeklySkill
+        -AiArtifactStore artifactStore
+    }
+    class AskAgent {
+        -TeamStatsService teamStatsService
+        -AskSkill askSkill
+        -AiArtifactStore artifactStore
+    }
+
+    class AiController {
+        +insight(plan, ppt, meeting, weekly, ask)
+    }
+    class AgentDispatchService {
+        -ChatAgent chatAgent
+        +dispatchSkill(text, userId, teamId, name) String
+    }
+    class AiContentService {
+        +history(teamId) List~ArtifactVO~
+        +detail(artifactId) AiArtifact
+        +fileBytes(artifactId) byte[]
+        +importPlanTasks(...) String
+    }
+    class AiExtendService {
+        +importMeetingTasks(...) String
+        +pushWeeklyToChat(...) String
+    }
+    class TaskBusinessService {
+        +handleChatMessage(teamId, userId, msg) Long
+    }
+
+    AbstractAgent <|.. ChatAgent : implements
+    AbstractAgent <|.. InsightAgent
+    AbstractAgent <|.. PlanAgent
+    AbstractAgent <|.. PptAgent
+    AbstractAgent <|.. MeetingAgent
+    AbstractAgent <|.. WeeklyAgent
+    AbstractAgent <|.. AskAgent
+    AbstractAgent *-- AgentContext : 参数载体
+    AbstractAgent ..> AgentResult : 返回
+    AgentResult ..> AgentSource : source 标记
+    AgentResult *-- SkillOutcome : Skill 段产物
+    AgentRegistry o-- AbstractAgent : 注册 7 个
+    AbstractAgent --> AgentAuditor : execute 收尾记来源
+    AbstractAgent --> LlmSupport : 兜底调用
+    InsightAgent --> AiArtifactStore : 落库产物
+    PptAgent --> AiArtifactStore : 落库产物(含 pptx 字节)
+    AiController ..> AgentRegistry : 6 个生成端点路由
+    AiController --> AiContentService : history/detail/file/import
+    AiController --> AiExtendService : import/push
+    AgentDispatchService --> ChatAgent : 聊天路由
+    TaskBusinessService --> AgentDispatchService
+    PptAgent --> LlmSupport : 润色

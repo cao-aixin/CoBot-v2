@@ -1,0 +1,30 @@
+﻿# ============================================================
+# 生产环境配置（不含任何密钥，全部由环境变量注入）
+# 启动方式：
+#   SPRING_PROFILES_ACTIVE=prod \
+#   DB_URL="jdbc:mysql://<host>:3306/cobot_db?..." \
+#   DB_USERNAME=xxx DB_PASSWORD=xxx \
+#   AI_API_KEY=xxx \
+#   java -jar cobot-web-agent-2.0.0.jar
+# ============================================================
+server:
+  port: ${SERVER_PORT:8093}
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password:CHANGE_ME
+  ai:
+    openai:
+      base-url: ${AI_BASE_URL:https://api.deepseek.com}
+      api-key:CHANGE_ME
+      chat:
+        options:
+          model: ${AI_MODEL:deepseek-chat}
+          temperature: 0.1
+
+# 生产环境关掉 SQL 明细日志（避免日志膨胀、泄露数据）
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl

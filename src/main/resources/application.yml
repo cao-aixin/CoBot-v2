@@ -1,0 +1,52 @@
+﻿server:
+  port: 8093                     # CoBot-v2 后端端口（避开旧项目 8091）
+
+spring:
+  # 默认激活 local 环境（读取 application-local.yml 中的本地密钥/口令）
+  # 生产部署请用环境变量覆盖：SPRING_PROFILES_ACTIVE=prod
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  datasource:
+    # 本地 MySQL，cobot_db 库（执行 sql/cobot_db.sql 自动创建）
+    url: ${DB_URL:jdbc:mysql://localhost:3306/cobot_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:root}
+    password:CHANGE_ME
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  servlet:
+    multipart:
+      max-file-size: 10MB        # 聊天附件单文件上限
+      max-request-size: 20MB     # 单次请求总体积上限
+  ai:
+    # OpenAI 兼容模式接入大模型（当前对接 DeepSeek，已实测可用）：    #   DeepSeek：base-url https://api.deepseek.com ，model deepseek-chat
+    #   豆包（火山方舟 Ark）：base-url https://ark.cn-beijing.volces.com/api/v3，model 改为对应推理接入点
+    #   通义（DashScope 兼容层）：base-url https://dashscope.aliyuncs.com/compatible-mode，model qwen-plus
+    #
+    # 安全：密钥一律不写在提交进版本库的配置里。
+    #   本地开发 -> 写在 application-local.yml（已被 .gitignore 排除）
+    #   服务器部署 -> 用环境变量 AI_API_KEY 注入
+    openai:
+      base-url: ${AI_BASE_URL:https://api.deepseek.com}
+      api-key:CHANGE_ME
+      chat:
+        options:
+          model: ${AI_MODEL:deepseek-chat}   # 模型名，按所用平台调整
+          temperature: 0.1                   # 抽取类任务低温更稳定
+
+# ===================== CoBot 业务配置 =====================
+agent:
+  mode: llm                  # Agent 运行模式：llm = SpringAI ToolCalling 调用大模型 / local = 本地正则+关键词 Skill（无需大模型 Key）
+
+cobot:
+  remind:
+    cron: "0 * * * * ?"       # 每分钟扫描一次到期任务 / 到期提醒
+  storage:
+    # 附件与 AI 产物文件的落盘根目录（相对 jar 运行目录）
+    root: ./data
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true   # 数据库下划线列名 -> Java 驼峰属性
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto           # 主键自增

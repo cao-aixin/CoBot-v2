@@ -1,0 +1,87 @@
+%% 时序图一：洞察请求（Skill 未命中 → LLM 兜底 → 成功）
+sequenceDiagram
+    autonumber
+    participant FE as 前端 index.html
+    participant AC as AiController
+    participant REG as AgentRegistry
+    participant IA as InsightAgent(AbstractAgent.execute)
+    participant IS as InsightSkill
+    participant TS as TeamStatsService
+    participant LS as LlmSupport
+    participant DS as DeepSeek
+    participant AS as AgentAuditor
+    participant ST as AiArtifactStore
+    participant DB as MySQL
+
+    FE->>AC: GET /api/ai/insight?teamId=x (Bearer token)
+    AC->>AC: isMember / isOwner 校验(原逻辑不动)
+    AC->>REG: get("insight")
+    REG-->>AC: InsightAgent
+    AC->>IA: execute(AgentContext{teamId,userId})
+    IA->>TS: buildInsight(teamId)
+    TS->>DB: 聚合 sys_task/sys_team_member/chat_message
+    TS-->>IA: TeamInsightVO stats(数字唯一来源)
+    IA->>IS: trySkill(ctx)
+    IS->>IS: 覆盖规则判定(本例: memberLoads 为空 → 未覆盖)
+    IS-->>IA: SkillOutcome.miss()
+    IA->>LS: callWithTimeout(callLlm, 60s)
+    LS->>DS: systemPromptAnalyst + userPromptInsight(stats)
+    DS-->>LS: 报告文本
+    LS->>LS: PlainTextCleaner.clean(输出)
+    LS-->>IA: report 非空
+    Note over IA: source = "llm"，aiGenerated=true
+    IA->>ST: save(teamId,userId,"insight",...,report)
+    ST->>DB: insert ai_artifact
+    IA->>AS: record(ctx,"insight","llm",costMs)
+    AS->>DB: insert sys_audit_log(action=AGENT_INSIGHT)
+    IA-->>AC: AgentResult(TeamInsightVO, "llm", costMs)
+    AC-->>FE: Result.ok(insight) —— JSON 逐字段与现状一致(不含 source)
+
+%% 时序图二：聊天室消息（Skill 命中 / 未命中两分支）
+sequenceDiagram
+    autonumber
+    participant FE as 前端 index.html
+    participant CC as ChatController
+    participant TB as TaskBusinessService
+    participant AD as AgentDispatchService
+    participant CA as ChatAgent(AbstractAgent.execute)
+    participant LO as LocalAgentService
+    participant SK as TaskQuerySkill等3个@Tool
+    participant AT as AiTaskParseService
+    participant DS as DeepSeek
+    participant PT as PlainTextCleaner
+    participant DB as MySQL
+
+    FE->>CC: POST /api/chat/send {teamId, content:"@CoBot ..."}
+    CC->>TB: handleChatMessage(teamId, loginUserId, content)
+    TB->>DB: 用户消息入 chat_message(+@提及解析)
+    TB->>AD: dispatchSkill(userText, userId, teamId, requesterName)
+    AD->>CA: execute(AgentContext{teamId,userId,requesterName,params:text})
+    alt 分支A：关键词意图命中(如"我的任务")
+        CA->>LO: trySkill → dispatchSkill 关键词路由
+        LO->>SK: queryTask("myTask", userId, teamId)
+        SK->>DB: 查 sys_task
+        SK-->>LO: 任务清单文本
+        LO->>PT: clean(输出)
+        LO-->>CA: 命中文本 → source="skill"，直接返回(不调模型)
+    else 分支B：未命中关键词 → LLM 兜底
+        CA->>AT: chatWithTool(text, userId, teamId, name)
+        AT->>DS: System Prompt + tools(3个@Tool Tool Calling)
+        DS->>AT: 回调 extractTask/createRemind/queryTask
+        AT->>DB: Skill 内部落库(暂存 pending_task 等)
+        DS-->>AT: 最终回复
+        AT->>PT: clean(reply)
+        AT-->>CA: reply(异常时 catch → null)
+        alt LLM 失败/超时
+            CA->>LO: fallbackLocal → 固定提示语或 null(保持安静)
+            Note over CA: source="fallback"，零报错
+        else LLM 成功
+            Note over CA: source="llm"
+        end
+    end
+    CA-->>AD: AgentResult(replyText, source, costMs)
+    AD-->>TB: replyText(契约与现状一致)
+    TB->>DB: bot 回复入 chat_message(senderType=1)
+    CA-->>AD: 同时 AgentAuditor 记 AGENT_CHAT(来源+耗时)
+    TB-->>CC: botReplyId
+    CC-->>FE: Result.ok(botReplyId) —— 响应结构不变
