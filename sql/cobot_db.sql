@@ -97,7 +97,7 @@ INSERT INTO sys_user (id, account, username, password) VALUES
 (2, '李四', '李四', '34768e01b823efa01239e1ffc47ea0370ff9d4d764305c80a889ba54b09e0490'),
 (3, '王五', '王五', '34768e01b823efa01239e1ffc47ea0370ff9d4d764305c80a889ba54b09e0490'),
 (4, '赵六', '赵六', '34768e01b823efa01239e1ffc47ea0370ff9d4d764305c80a889ba54b09e0490');
--- 上面哈希 = SHA2(CONCAT('CoBot@2026#salt','CHANGE_ME'),256)，即演示密码 123456
+-- 上面哈希 = SHA2(CONCAT('CoBot@2026#salt','123456'),256)，即演示密码 123456
 
 INSERT INTO sys_team (id, team_name, invite_code) VALUES
 (1, '研发一组', 'R8K2QA'),

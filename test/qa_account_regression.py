@@ -21,7 +21,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 BASE = "http://127.0.0.1:8093"
 MYSQL = r"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"
-PASS = "CHANGE_ME"
+PASS = "123456"
 TS = str(int(time.time()))
 # 本地回环绕过系统代理（否则请求会被 HTTP_PROXY 劫持成 502）
 OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))

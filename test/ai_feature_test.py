@@ -52,7 +52,7 @@ def check(name, cond, detail=""):
         print("  [FAIL] %s %s" % (name, detail))
 
 
-def login(account, password="CHANGE_ME"):
+def login(account, password="123456"):
     r = call("POST", "/api/auth/login", {"account": account, "password": password})
     assert r.get("code") == 200, "登录失败 %s: %s" % (account, r)
     return r["data"]["token"]

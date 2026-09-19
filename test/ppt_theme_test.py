@@ -42,7 +42,7 @@ def call(method, path, body=None, token=None, raw=False, timeout=180):
     return resp.read() if raw else json.loads(resp.read())
 
 
-def login(account, password='CHANGE_ME'):
+def login(account, password='123456'):
     return call('POST', '/api/auth/login',
                 {'account': account, 'password': password})['data']['token']
 

@@ -14,11 +14,11 @@ spring:
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
-    password:CHANGE_ME
+    password: ${DB_PASSWORD}
   ai:
     openai:
       base-url: ${AI_BASE_URL:https://api.deepseek.com}
-      api-key:CHANGE_ME
+      api-key: ${AI_API_KEY}
       chat:
         options:
           model: ${AI_MODEL:deepseek-chat}

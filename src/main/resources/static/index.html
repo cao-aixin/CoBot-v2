@@ -913,8 +913,8 @@ createApp({
     const loggedIn = ref(false);
     const me = reactive({ userId: null, username: '' });
     const loginTab = ref('login');
-    const loginForm = reactive({ account: '', password: 'CHANGE_ME' });
-    const regForm = reactive({ account: '', nickname: '', password: 'CHANGE_ME' });
+    const loginForm = reactive({ account: '', password: '123456' });
+    const regForm = reactive({ account: '', nickname: '', password: '123456' });
     /** 已登录但未加入任何团队：为 true 时渲染引导页（创建团队 / 凭邀请码加入） */
     const needTeam = ref(false);
     const loginLoading = ref(false);
@@ -1082,10 +1082,10 @@ createApp({
         ElementPlus.ElMessage.success(resp.data);
         loginTab.value = 'login';
         loginForm.account = regForm.account;
-        loginForm.password = 'CHANGE_ME';
+        loginForm.password = '123456';
         regForm.account = '';
         regForm.nickname = '';
-        regForm.password = 'CHANGE_ME';
+        regForm.password = '123456';
       } finally {
         regLoading.value = false;
       }

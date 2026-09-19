@@ -18,7 +18,7 @@ import urllib.request
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8093
 BASE = "http://127.0.0.1:%d" % PORT
-PASS = "CHANGE_ME"
+PASS = "123456"
 TEAM_NAME = "QA符号验证团队"
 results = []      # (阶段, 名称, ok, 详情)
 samples = []      # (标签, 文本片段)

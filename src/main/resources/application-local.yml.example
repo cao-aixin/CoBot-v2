@@ -12,4 +12,4 @@ spring:
   ai:
     openai:
       # 在这里填本地开发用的 API Key（也可不改此文件，改用环境变量 AI_API_KEY）
-      api-key:CHANGE_ME
+      api-key: CHANGE_ME

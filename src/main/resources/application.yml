@@ -10,14 +10,15 @@ spring:
     # 本地 MySQL，cobot_db 库（执行 sql/cobot_db.sql 自动创建）
     url: ${DB_URL:jdbc:mysql://localhost:3306/cobot_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
     username: ${DB_USERNAME:root}
-    password:CHANGE_ME
+    password: ${DB_PASSWORD:}               # 留空 = 由 application-local.yml 或环境变量提供
     driver-class-name: com.mysql.cj.jdbc.Driver
   servlet:
     multipart:
       max-file-size: 10MB        # 聊天附件单文件上限
       max-request-size: 20MB     # 单次请求总体积上限
   ai:
-    # OpenAI 兼容模式接入大模型（当前对接 DeepSeek，已实测可用）：    #   DeepSeek：base-url https://api.deepseek.com ，model deepseek-chat
+    # OpenAI 兼容模式接入大模型（当前对接 DeepSeek，已实测可用）：
+    #   DeepSeek：base-url https://api.deepseek.com ，model deepseek-chat
     #   豆包（火山方舟 Ark）：base-url https://ark.cn-beijing.volces.com/api/v3，model 改为对应推理接入点
     #   通义（DashScope 兼容层）：base-url https://dashscope.aliyuncs.com/compatible-mode，model qwen-plus
     #
@@ -26,7 +27,7 @@ spring:
     #   服务器部署 -> 用环境变量 AI_API_KEY 注入
     openai:
       base-url: ${AI_BASE_URL:https://api.deepseek.com}
-      api-key:CHANGE_ME
+      api-key: ${AI_API_KEY:}                 # 留空 = 本地 Skill 模式（无需 Key）
       chat:
         options:
           model: ${AI_MODEL:deepseek-chat}   # 模型名，按所用平台调整
